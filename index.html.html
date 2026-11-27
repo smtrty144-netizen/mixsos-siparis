@@ -1,0 +1,3329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Siparişim Yurtta! | Mixsos</title>
+  <meta name="theme-color" content="#d62828" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Siparişim Yurtta!" />
+  <link id="dynamic-manifest" rel="manifest" href="" />
+  <link id="apple-touch-icon-link" rel="apple-touch-icon" href="" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #f6f7f9;
+      color: #18181b;
+    }
+    .soft-card {
+      background: #ffffff;
+      border: 1px solid #e4e4e7;
+      box-shadow: 0 2px 12px rgba(24, 24, 27, 0.04);
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body class="min-h-screen pb-24">
+
+  <!-- 1. YÖNETİCİ MASTER SİTE KİLİDİ OVERLAY -->
+  <div id="site-lock-overlay" class="fixed inset-0 z-50 hidden bg-zinc-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 border border-zinc-200 shadow-2xl text-center space-y-4">
+      <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 font-black text-xl flex items-center justify-center mx-auto">!</div>
+      <div>
+        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800">Sistem Durduruldu</span>
+        <h2 class="font-extrabold text-lg text-zinc-900 mt-2">Siparişim Yurtta! Geçici Olarak Kapalı</h2>
+        <p id="site-lock-reason" class="text-xs text-zinc-600 mt-1.5 leading-relaxed">
+          Sistem yönetici tarafından geçici olarak kapatılmıştır.
+        </p>
+      </div>
+      <div class="pt-3 border-t border-zinc-100 space-y-2">
+        <div class="text-[11px] font-bold text-zinc-400">Yönetici Hızlı Kilit Açma</div>
+        <div class="flex gap-2">
+          <input id="lock-unlock-pass" type="password" placeholder="Yönetici Şifresi" onkeydown="if(event.key==='Enter') AdminApp.unlockFromOverlay()"
+            class="flex-1 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+          <button type="button" onclick="AdminApp.unlockFromOverlay()" class="px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-extrabold">
+            Kilidi Aç
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÜST BAR -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-zinc-200">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="h-10 px-3 rounded-xl bg-[#d62828] flex items-center justify-center shrink-0 select-none">
+          <span class="font-black tracking-wider text-white text-sm flex items-center">
+            MIX<span class="text-[#f7b500] relative inline-flex flex-col items-center mx-0.5 leading-none">
+              <span class="w-1 h-1.5 bg-[#f7b500] rounded-xs mb-0.5"></span>
+              <span>O</span>
+              <span class="w-3.5 h-1 bg-white rounded-xs mt-0.5"></span>
+            </span>S
+          </span>
+        </div>
+        <div>
+          <div class="font-extrabold text-base leading-tight text-zinc-900">Siparişim Yurtta! • Mixsos</div>
+          <div id="header-route-subtitle" class="text-[11px] text-zinc-500">Yurt & Kampüs Teslimat Hattı</div>
+        </div>
+      </div>
+
+      <!-- HESAP KUTUSU -->
+      <div class="hidden md:flex items-center gap-2 bg-zinc-100 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs">
+        <span class="text-zinc-500">Hesap:</span>
+        <span id="header-user-badge" class="font-bold text-zinc-800">Misafir</span>
+        <button type="button" onclick="App.openAccountModal()" class="ml-1 text-amber-700 font-bold underline">Düzenle</button>
+      </div>
+
+      <!-- ANA SEKMELER & BİLDİRİM ZİLİ -->
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <button id="btn-notif-bell" type="button" onclick="NotificationApp.togglePanel()" aria-label="Bildirimlerim"
+            class="relative w-9 h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 flex items-center justify-center text-zinc-800 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span id="notif-unread-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#d62828] text-white text-[10px] font-black flex items-center justify-center shadow">0</span>
+          </button>
+
+          <!-- KİŞİYE ÖZEL BİLDİRİM ÇEKMECESİ -->
+          <div id="notif-popover" class="hidden fixed sm:absolute right-3 sm:right-0 top-16 sm:top-11 w-[calc(100vw-1.5rem)] sm:w-96 bg-white rounded-3xl border border-zinc-200 shadow-2xl z-50 overflow-hidden">
+            <div class="px-4 py-3 bg-zinc-950 text-white flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#f7b500]"></span>
+                <div>
+                  <div class="font-extrabold text-xs">Bildirimlerim</div>
+                  <div id="notif-uid-label" class="text-[10px] text-zinc-400">Canlı Sipariş & Sistem Bildirimleri</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button type="button" onclick="NotificationApp.markAllRead()" class="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-200">
+                  Okundu Say
+                </button>
+                <button type="button" onclick="NotificationApp.closePanel()" class="w-6 h-6 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-bold">✕</button>
+              </div>
+            </div>
+            <div id="notif-list-container" class="max-h-80 overflow-y-auto divide-y divide-zinc-100 bg-white">
+              <div class="p-6 text-center text-xs text-zinc-400">Henüz bildiriminiz yok.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center bg-zinc-100 p-1 rounded-xl border border-zinc-200">
+          <button id="btn-tab-shop" type="button" onclick="App.setTab('shop')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-900 text-white transition">
+            Sipariş Ver
+          </button>
+          <button id="btn-tab-track" type="button" onclick="App.setTab('track')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-900 transition">
+            Sipariş Takip
+          </button>
+          <button id="btn-tab-admin" type="button" onclick="App.setTab('admin')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-900 transition flex items-center gap-1.5">
+            <span>Panel</span>
+            <span id="admin-order-count" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-500 text-zinc-950">0</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 -translate-y-2 transition-all duration-200 w-[92%] max-w-md">
+    <div id="toast-text" class="px-4 py-2.5 rounded-2xl text-xs font-bold text-center bg-zinc-900 text-white shadow-lg"></div>
+  </div>
+
+  <!-- HESAP MODAL -->
+  <div id="account-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/50 backdrop-blur-[2px] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 border border-zinc-200 shadow-xl space-y-4">
+      <div class="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <div>
+          <h3 class="font-extrabold text-base text-zinc-900">Hesap & Teslimat Bilgilerim</h3>
+          <p class="text-xs text-zinc-500">Bilgilerin kaydedilir, sonraki siparişlerde hazır gelir.</p>
+        </div>
+        <button type="button" onclick="App.closeAccountModal()" class="w-8 h-8 rounded-full bg-zinc-100 text-zinc-600 font-bold text-xs">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-zinc-700 mb-1">Ad Soyad</label>
+          <input id="acc-name" type="text" placeholder="Adınız Soyadınız" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-zinc-900">
+        </div>
+        <div>
+          <label class="block font-bold text-zinc-700 mb-1">Telefon Numarası</label>
+          <input id="acc-phone" type="tel" maxlength="14" oninput="App.formatPhone(this)" placeholder="05XX XXX XX XX" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-zinc-900">
+        </div>
+        <div>
+          <label class="block font-bold text-zinc-700 mb-1">Teslimat Noktası (Yurt / Fakülte)</label>
+          <select id="acc-dorm" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-zinc-900"></select>
+        </div>
+        <div>
+          <label class="block font-bold text-zinc-700 mb-1">Ödeme Yöntemi</label>
+          <select id="acc-payment" class="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-zinc-900"></select>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" onclick="App.closeAccountModal()" class="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-700 text-xs font-bold">Vazgeç</button>
+        <button type="button" onclick="App.saveAccount()" class="px-5 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANA EKRANA EKLE YARDIM MODAL (iOS / Tarayıcı Rehberi) -->
+  <div id="pwa-install-modal" class="fixed inset-0 z-50 hidden bg-zinc-950/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 border border-zinc-200 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-[#d62828] text-white font-black text-xs flex items-center justify-center">MIX</div>
+          <div>
+            <h3 class="font-extrabold text-sm text-zinc-900">Telefonun Ana Ekranına Ekle</h3>
+            <p class="text-[11px] text-zinc-500">Uygulama gibi tek dokunuşla açın</p>
+          </div>
+        </div>
+        <button type="button" onclick="PwaApp.closeModal()" class="w-7 h-7 rounded-full bg-zinc-100 text-zinc-600 font-bold text-xs">✕</button>
+      </div>
+      <div id="pwa-install-steps" class="space-y-2.5 text-xs text-zinc-700 leading-relaxed"></div>
+      <button type="button" onclick="PwaApp.closeModal()" class="w-full py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-extrabold">
+        Anladım
+      </button>
+    </div>
+  </div>
+
+  <main class="max-w-6xl mx-auto px-4 pt-4 space-y-5">
+
+    <!-- MIXSOS CANLI DUYURU & NOT BANNERI -->
+    <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3.5">
+          <div class="h-12 px-4 rounded-2xl bg-[#d62828] flex items-center justify-center shrink-0 shadow-sm">
+            <span class="font-black tracking-wider text-white text-base flex items-center">
+              MIX<span class="text-[#f7b500] relative inline-flex flex-col items-center mx-0.5 leading-none">
+                <span class="w-1 h-1.5 bg-[#f7b500] rounded-xs mb-0.5"></span>
+                <span>O</span>
+                <span class="w-3.5 h-1 bg-white rounded-xs mt-0.5"></span>
+              </span>S
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span id="store-open-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                ● Sipariş Alımı Açık
+              </span>
+              <span class="text-xs font-extrabold text-zinc-900">Mixsos Hızlı Yurt & Kampüs Hattı</span>
+            </div>
+            <p class="text-[11px] text-zinc-500 mt-0.5">Siparişiniz onaylandığı an hazırlanır ve kurye rotasına eklenir.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-center">
+          <button id="btn-install-pwa" type="button" onclick="PwaApp.promptInstall()"
+            class="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition flex items-center gap-1.5">
+            <span>📲 Ana Ekrana Ekle</span>
+          </button>
+          <button id="btn-enable-notif" type="button" onclick="PwaApp.requestNotificationPermission()"
+            class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-xs font-bold transition flex items-center gap-1.5">
+            <span id="btn-enable-notif-text">🔔 Bildirimleri Aç</span>
+          </button>
+          <button type="button" onclick="App.openAccountModal()" class="px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold transition">
+            Bilgilerim
+          </button>
+        </div>
+      </div>
+
+      <!-- YÖNETİCİ / İŞLETME CANLI NOT & DUYURU KUTUSU -->
+      <div id="live-announcement-box" class="rounded-2xl bg-amber-50/90 border border-amber-200 px-3.5 py-2.5 flex items-start gap-2.5">
+        <span class="px-2 py-0.5 rounded-lg bg-amber-400 text-zinc-950 text-[10px] font-extrabold uppercase shrink-0 mt-0.5">Duyuru</span>
+        <div class="flex-1 min-w-0">
+          <p id="live-announcement-text" class="text-xs font-bold text-zinc-900 leading-relaxed">
+            Siparişleriniz taze hazırlanıp seçtiğiniz yurt veya fakülte noktasına teslim edilir.
+          </p>
+          <span id="live-announcement-time" class="text-[10px] text-amber-800 font-semibold hidden"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. SEKME: MIXSOS SİPARİŞ EKRANI -->
+    <div id="tab-shop" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <div class="lg:col-span-8 space-y-5">
+        <div id="closed-notice" class="hidden soft-card rounded-3xl p-4 border-rose-200 bg-rose-50 text-rose-800 text-xs font-bold text-center">
+          Sipariş alımı şu an kapatılmıştır.
+        </div>
+
+        <!-- MENÜ -->
+        <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 class="font-extrabold text-base text-zinc-900">Mixsos Menüsü</h2>
+              <p class="text-[11px] text-zinc-500">Fiyat ve stoklar anlık olarak güncellenir.</p>
+            </div>
+            <div class="flex gap-2">
+              <input id="search-input" type="text" oninput="ShopApp.renderMenu()" placeholder="Ürün ara..."
+                class="bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-1.5 text-xs outline-none">
+              <button id="btn-only-discount" type="button" onclick="ShopApp.toggleDiscountFilter()"
+                class="px-3 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 text-xs font-bold shrink-0">
+                İndirimli
+              </button>
+            </div>
+          </div>
+
+          <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- TESLİMAT NOKTASI, İLETİŞİM & ÖDEME -->
+        <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+            <h2 class="font-extrabold text-base text-zinc-900">Teslimat Noktası, İletişim & Ödeme</h2>
+            <button type="button" onclick="App.openAccountModal()" class="text-xs font-bold text-amber-700 underline">
+              Bilgilerimi Kaydet
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-zinc-600 mb-2">Teslimat Lokasyonu (Yurt / Fakülte Seçimi)</label>
+            <div id="dorm-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-zinc-600 mb-1">Ad Soyad *</label>
+              <input id="order-name" type="text" maxlength="50" oninput="ShopApp.syncFormToLocal()" placeholder="Adınız Soyadınız"
+                class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-zinc-600 mb-1">Telefon Numarası *</label>
+              <input id="order-phone" type="tel" maxlength="14" oninput="App.formatPhone(this); ShopApp.syncFormToLocal();" placeholder="05XX XXX XX XX"
+                class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-zinc-600 mb-1">Ödeme Seçeneği</label>
+              <select id="order-payment" onchange="ShopApp.onPaymentChange()" class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none"></select>
+              <div id="payment-iban-info" class="hidden mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-zinc-800 space-y-1"></div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-zinc-600 mb-1">Blok / Oda / Kat / Sipariş Notu</label>
+              <input id="order-note" type="text" maxlength="100" placeholder="Örn: A Blok kapısı, sos bol"
+                class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- SEPET -->
+      <aside class="lg:col-span-4 space-y-4 lg:sticky lg:top-20">
+        <div class="soft-card rounded-3xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <h2 class="font-extrabold text-base text-zinc-900">Sepetim</h2>
+            <span id="cart-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-700">0 Ürün</span>
+          </div>
+
+          <div id="cart-items" class="space-y-2 max-h-64 overflow-y-auto"></div>
+
+          <div class="border-t border-zinc-100 pt-3 space-y-2 text-xs">
+            <div class="flex justify-between text-zinc-500">
+              <span>Teslimat Noktası</span>
+              <span id="summary-dorm" class="font-bold text-zinc-800 text-right max-w-[180px] truncate">-</span>
+            </div>
+            <div class="flex justify-between text-zinc-500">
+              <span>Ödeme</span>
+              <span id="summary-payment" class="font-bold text-zinc-800">Kapıda Ödeme</span>
+            </div>
+            <div id="summary-total-row" class="flex justify-between items-center pt-2 border-t border-zinc-100">
+              <span class="font-bold text-sm text-zinc-900">Ödenecek Tutar</span>
+              <span id="summary-total" class="font-extrabold text-lg text-zinc-900">0 ₺</span>
+            </div>
+          </div>
+
+          <button type="button" onclick="ShopApp.submitOrder()"
+            class="w-full py-3.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-sm transition">
+            Siparişi Tamamla
+          </button>
+        </div>
+
+        <!-- MİNİ SİPARİŞ TAKİP KARTI -->
+        <div id="mini-track-card" class="hidden soft-card rounded-3xl p-4 space-y-2 border-emerald-200">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold uppercase text-emerald-700">Aktif Sipariş Takibi</span>
+            <button type="button" onclick="App.setTab('track')" class="text-xs font-bold text-zinc-900 underline">Canlı Takip →</button>
+          </div>
+          <div id="mini-track-body" class="text-xs text-zinc-700 font-medium"></div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 2. SEKME: CANLI SİPARİŞ TAKİP -->
+    <div id="tab-track" class="hidden max-w-2xl mx-auto">
+      <section class="soft-card rounded-3xl p-5 sm:p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-extrabold text-lg text-zinc-900">Canlı Sipariş Takip</h2>
+            <p class="text-xs text-zinc-500 mt-0.5">Sipariş kodunuzla (<span class="font-bold text-zinc-800">SY-12345</span>) hazırlık ve kurye aşamalarını anlık izleyin.</p>
+          </div>
+          <button type="button" onclick="TrackApp.lookup()" class="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold">
+            Durumu Yenile
+          </button>
+        </div>
+
+        <div class="flex gap-2">
+          <input id="track-input" type="text" placeholder="Sipariş Kodu (SY-...)" onkeydown="if(event.key==='Enter') TrackApp.lookup()"
+            class="flex-1 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3.5 py-2.5 text-sm font-bold uppercase outline-none">
+          <button type="button" onclick="TrackApp.lookup()" class="px-5 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-bold">
+            Takip Et
+          </button>
+        </div>
+
+        <div id="track-result"></div>
+
+        <div class="pt-3 border-t border-zinc-100 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-extrabold text-xs text-zinc-800">Kayıtlı Siparişlerim</h3>
+            <span class="text-[10px] text-zinc-400">Sayfa yenilense bile siparişleriniz korunur</span>
+          </div>
+          <div id="my-auth-orders-list" class="space-y-2"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 3. SEKME: YÖNETİCİ / İŞLETME / KURYE PANELİ -->
+    <div id="tab-admin" class="hidden space-y-5">
+      <section id="admin-login-panel" class="soft-card rounded-3xl p-5 max-w-md mx-auto space-y-4">
+        <div class="text-center space-y-1">
+          <h2 class="font-extrabold text-lg text-zinc-900">Yetkili Panel Girişi</h2>
+          <p class="text-xs text-zinc-500">Giriş rolünüzü seçin ve şifrenizi girin.</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1.5 bg-zinc-100 p-1 rounded-2xl border border-zinc-200">
+          <button id="role-tab-admin" type="button" onclick="AdminApp.selectLoginRole('admin')"
+            class="py-2 px-2 rounded-xl text-[11px] font-extrabold bg-zinc-900 text-white transition">
+            Yönetici
+          </button>
+          <button id="role-tab-business" type="button" onclick="AdminApp.selectLoginRole('business')"
+            class="py-2 px-2 rounded-xl text-[11px] font-extrabold text-zinc-600 hover:text-zinc-900 transition">
+            İşletme
+          </button>
+          <button id="role-tab-courier" type="button" onclick="AdminApp.selectLoginRole('courier')"
+            class="py-2 px-2 rounded-xl text-[11px] font-extrabold text-zinc-600 hover:text-zinc-900 transition">
+            Kurye
+          </button>
+        </div>
+
+        <div id="login-role-hint" class="text-[11px] text-center font-semibold text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-xl py-2 px-3">
+          Yönetici tam yetki, ayarlar ve hesap defteri girişi.
+        </div>
+
+        <div class="space-y-2.5">
+          <input id="admin-pass-input" type="password" placeholder="Yönetici Şifresi" onkeydown="if(event.key==='Enter') AdminApp.login()"
+            class="w-full text-center bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-4 py-2.5 text-sm font-bold outline-none">
+          <button type="button" onclick="AdminApp.login()" class="w-full py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-extrabold">
+            Giriş Yap
+          </button>
+        </div>
+      </section>
+
+      <div id="admin-panel-content" class="hidden space-y-5">
+        <!-- KURYE DAĞITIM & ROTA EKRANI -->
+        <div id="courier-mode-panel" class="hidden space-y-4">
+          <section class="soft-card rounded-3xl p-4 sm:p-5 bg-sky-950 text-white border-2 border-sky-800 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-400 text-sky-950 uppercase">Kurye</span>
+                  <h3 class="font-extrabold text-base text-white">Kurye Rota & Teslimat Ekranı</h3>
+                </div>
+                <p class="text-[11px] text-sky-200 mt-0.5">Rota sırasına göre paketleri görüntüleyin ve tek dokunuşla teslimat bildirin.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="AdminApp.fetchOrders(false)" class="px-3 py-1.5 rounded-xl bg-sky-800 hover:bg-sky-700 text-white text-xs font-bold">Yenile</button>
+                <button type="button" onclick="AdminApp.logout()" class="px-3 py-1.5 rounded-xl bg-white text-zinc-950 text-xs font-extrabold">Çıkış</button>
+              </div>
+            </div>
+
+            <div>
+              <button type="button" onclick="AdminApp.notifyAllOnTheWay()"
+                class="w-full py-3 px-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition">
+                <span>Yola Çıktım — Tüm Aktif Siparişlere "Kurye Yolda" Bildirimi Gönder</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div class="rounded-2xl bg-sky-900/80 border border-sky-800 p-3">
+                <div class="text-[10px] font-bold text-sky-300">Kalan Teslimat</div>
+                <div id="cur-stat-remaining" class="font-extrabold text-lg text-white mt-0.5">0 Paket</div>
+              </div>
+              <div class="rounded-2xl bg-sky-900/80 border border-sky-800 p-3">
+                <div class="text-[10px] font-bold text-sky-300">Teslim Edilen</div>
+                <div id="cur-stat-delivered" class="font-extrabold text-lg text-emerald-400 mt-0.5">0 Paket</div>
+              </div>
+              <div class="rounded-2xl bg-sky-900/80 border border-sky-800 p-3">
+                <div class="text-[10px] font-bold text-sky-300">Kapıda Tahsilat</div>
+                <div id="cur-stat-cash" class="font-extrabold text-lg text-amber-400 mt-0.5">0 ₺</div>
+              </div>
+              <div class="rounded-2xl bg-sky-900/80 border border-sky-800 p-3">
+                <div class="text-[10px] font-bold text-sky-300">POS / IBAN</div>
+                <div id="cur-stat-other" class="font-extrabold text-lg text-sky-200 mt-0.5">0 ₺</div>
+              </div>
+            </div>
+
+            <div id="cur-dorm-pills" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2"></div>
+          </section>
+
+          <section class="soft-card rounded-3xl p-4 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="cur-dorm-filter" onchange="AdminApp.renderCourierView()"
+                class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs font-extrabold text-zinc-900 outline-none">
+                <option value="ALL">Tüm Lokasyonlar (Sıralı)</option>
+              </select>
+              <label class="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-700 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 cursor-pointer">
+                <input id="cur-hide-delivered" type="checkbox" onchange="AdminApp.renderCourierView()" class="w-4 h-4 accent-sky-600">
+                <span>Teslim Edilenleri Gizle</span>
+              </label>
+            </div>
+            <input id="cur-search" type="text" oninput="AdminApp.renderCourierView()" placeholder="İsim veya telefon ara..."
+              class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none">
+          </section>
+
+          <div id="courier-orders-list" class="space-y-3"></div>
+        </div>
+
+        <!-- YÖNETİCİ & İŞLETME ANA GÖVDE -->
+        <div id="manager-mode-panel" class="space-y-5">
+
+          <!-- 1. YÖNETİCİ ÖZEL KONTROL MERKEZİ -->
+          <section id="owner-master-controls" class="soft-card rounded-3xl p-4 sm:p-5 border-2 border-zinc-900 bg-zinc-950 text-white space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-zinc-950 uppercase">Yönetici Yetkisi</span>
+                  <h3 class="font-extrabold text-sm text-white">Site Kilidi, İşletme Kontrolü & Hak Ediş</h3>
+                </div>
+                <p class="text-[11px] text-zinc-400 mt-0.5">Tek dokunuşla siteyi kapatabilir veya işletme panelini dondurabilirsiniz.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="btn-site-killswitch" type="button" onclick="AdminApp.toggleSiteLock()"
+                  class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition">
+                  Siteyi Tamamen Kapat
+                </button>
+                <button id="btn-business-lock" type="button" onclick="AdminApp.toggleBusinessLock()"
+                  class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-extrabold transition">
+                  İşletme Girişini Dondur
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div class="md:col-span-6 space-y-1">
+                <label class="block text-[11px] font-bold text-zinc-300">Site Kapatma Mesajı</label>
+                <div class="flex gap-2">
+                  <input id="adm-lock-reason-input" type="text" placeholder="Örn: Sistem bakımdadır, kısa süre sonra açılacaktır."
+                    class="flex-1 bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                  <button type="button" onclick="AdminApp.saveLockReason()" class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold shrink-0">
+                    Kaydet
+                  </button>
+                </div>
+              </div>
+
+              <div class="md:col-span-3 space-y-1">
+                <label class="block text-[11px] font-bold text-zinc-300">Komisyon Oranı (%)</label>
+                <input id="adm-commission-rate" type="number" min="0" max="100" step="0.5" value="10" oninput="AdminApp.renderStats()"
+                  class="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-xl px-3 py-2 text-xs font-extrabold text-amber-400 outline-none">
+              </div>
+
+              <div class="md:col-span-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-2.5">
+                <div class="text-[10px] font-bold text-zinc-400">Net Hak Ediş</div>
+                <div id="adm-commission-amount" class="font-extrabold text-base text-emerald-400 mt-0.5">0 ₺</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- GENEL AYARLAR, CANLI DUYURU & ÖDEME YÖNTEMLERİ -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-extrabold text-zinc-900">Aktif Oturum:</span>
+                <span id="adm-role-badge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900">Yönetici</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="AdminApp.fetchOrders(false)" class="px-3 py-1.5 rounded-xl bg-zinc-100 text-zinc-800 text-xs font-bold">Yenile</button>
+                <button id="btn-adm-clear-orders" type="button" onclick="AdminApp.clearOrders()" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold">Listeyi Temizle</button>
+                <button type="button" onclick="AdminApp.logout()" class="px-3 py-1.5 rounded-xl bg-zinc-900 text-white text-xs font-bold">Çıkış</button>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-5">
+              <label class="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                <input id="adm-open-check" type="checkbox" onchange="AdminApp.updateSetting('ordersOpen', this.checked)" class="w-4 h-4 accent-emerald-600">
+                <span>Sipariş Alımı Açık</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                <input id="adm-price-check" type="checkbox" onchange="AdminApp.updateSetting('pricesVisible', this.checked)" class="w-4 h-4 accent-zinc-900">
+                <span>Fiyatları Göster</span>
+              </label>
+            </div>
+
+            <!-- SİTEDEKİLERE NOT / DUYURU GÖNDERME -->
+            <div class="pt-3 border-t border-zinc-100 space-y-2">
+              <div>
+                <div class="text-xs font-extrabold text-zinc-900">Sitedeki Kullanıcılara Canlı Not / Duyuru Yayınla</div>
+                <div class="text-[11px] text-zinc-500">Yayınladığınız not tüm kullanıcıların ekranında anında görünür ve bildirim zilinde yer alır.</div>
+              </div>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input id="adm-notice-input" type="text" placeholder="Örn: Bugün tüm dürümlerde sıcak teslimat devam ediyor..."
+                  class="flex-1 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none">
+                <button type="button" onclick="AdminApp.saveNotice(true)" class="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold shrink-0">
+                  Notu Yayınla & Bildir
+                </button>
+              </div>
+            </div>
+
+            <!-- ÖDEME YÖNTEMLERİ YÖNETİMİ (KAPIDA ÖDEME / POS / IBAN) -->
+            <div class="pt-3 border-t border-zinc-100 space-y-2.5">
+              <div>
+                <div class="text-xs font-extrabold text-zinc-900">Ödeme Seçenekleri Yönetimi</div>
+                <div class="text-[11px] text-zinc-500">Şu an aktif olan ödeme yöntemlerini açıp kapatabilir, ileride Kapıda POS veya IBAN bilgisini ekleyebilirsiniz.</div>
+              </div>
+              <div class="flex flex-wrap items-center gap-4 text-xs font-bold">
+                <label class="flex items-center gap-2 cursor-pointer bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-xl">
+                  <input id="adm-pay-cash" type="checkbox" onchange="AdminApp.savePaymentSettings()" class="w-4 h-4 accent-emerald-600">
+                  <span>Kapıda Ödeme (Nakit)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-xl">
+                  <input id="adm-pay-pos" type="checkbox" onchange="AdminApp.savePaymentSettings()" class="w-4 h-4 accent-emerald-600">
+                  <span>Kapıda POS (Kart)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer bg-zinc-50 border border-zinc-200 px-3 py-2 rounded-xl">
+                  <input id="adm-pay-iban" type="checkbox" onchange="AdminApp.savePaymentSettings()" class="w-4 h-4 accent-emerald-600">
+                  <span>IBAN / Havale</span>
+                </label>
+              </div>
+              <div id="adm-iban-detail-row" class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                <input id="adm-iban-holder" type="text" placeholder="IBAN Alıcı Ad Soyad / Firma" class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs outline-none">
+                <input id="adm-iban-number" type="text" placeholder="TR00 0000 0000 0000 0000 0000 00" class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+                <button type="button" onclick="AdminApp.savePaymentSettings(true)" class="px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold">
+                  Ödeme Ayarlarını Kaydet
+                </button>
+              </div>
+            </div>
+
+            <!-- ŞİFRE GÜNCELLEME (YÖNETİCİ) -->
+            <div id="adm-password-box" class="pt-3 border-t border-zinc-100 space-y-2">
+              <div>
+                <div class="text-xs font-extrabold text-zinc-900">Panel Giriş Şifrelerini Güncelle</div>
+                <div class="text-[11px] text-zinc-500">Güncellediğiniz şifreler buluta kaydedilir ve anında geçerli olur.</div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div>
+                  <label class="block text-[10px] font-bold text-zinc-500 mb-1">Yeni Yönetici Şifresi</label>
+                  <input id="adm-new-admin-pass" type="password" placeholder="Yeni Yönetici Şifresi"
+                    class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-zinc-500 mb-1">Yeni İşletme Şifresi</label>
+                  <input id="adm-new-business-pass" type="password" placeholder="Yeni İşletme Şifresi"
+                    class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-zinc-500 mb-1">Yeni Kurye Şifresi</label>
+                  <input id="adm-new-courier-pass" type="password" placeholder="Yeni Kurye Şifresi"
+                    class="w-full bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+                </div>
+                <div class="flex items-end">
+                  <button type="button" onclick="AdminApp.savePasswords()" class="w-full px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold">
+                    Şifreleri Güncelle
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ADRES / LOKASYON (YURT & FAKÜLTE) YÖNETİMİ (YÖNETİCİ & İŞLETME) -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-sm text-zinc-900">Teslimat Lokasyonları Yönetimi (Yurt & Fakülte Ekle / Düzenle)</h3>
+                <p class="text-[11px] text-zinc-500">Eklediğiniz yurt veya fakülteler sipariş ekranına ve kurye rotasına otomatik eklenir.</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-xl bg-zinc-100 text-zinc-700 text-[11px] font-bold">Yönetici & İşletme Yetkisi</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <select id="new-loc-type" class="sm:col-span-3 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs font-bold outline-none">
+                <option value="Yurt">Yurt</option>
+                <option value="Fakülte">Fakülte</option>
+                <option value="Kampüs Noktası">Kampüs Noktası</option>
+              </select>
+              <input id="new-loc-name" type="text" placeholder="Örn: Turizm Fakültesi veya Yeni KYK Yurdu"
+                class="sm:col-span-6 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 rounded-xl px-3 py-2 text-xs font-semibold outline-none">
+              <button type="button" onclick="AdminApp.addLocation()" class="sm:col-span-3 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold">
+                Lokasyon Ekle
+              </button>
+            </div>
+
+            <div id="admin-locations-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1"></div>
+          </section>
+
+          <!-- ÖZET İSTATİSTİKLER -->
+          <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="soft-card rounded-2xl p-4">
+              <div class="text-[11px] font-bold text-zinc-400">Gelen Sipariş</div>
+              <div id="adm-stat-count" class="font-extrabold text-xl text-zinc-900 mt-1">0</div>
+            </div>
+            <div class="soft-card rounded-2xl p-4 border-amber-300 bg-amber-50/40">
+              <div class="text-[11px] font-bold text-amber-800">Toplam Ürün Adedi</div>
+              <div id="adm-stat-total-items" class="font-extrabold text-xl text-amber-950 mt-1">0 Adet</div>
+            </div>
+            <div class="soft-card rounded-2xl p-4">
+              <div class="text-[11px] font-bold text-zinc-400">Toplam Ciro</div>
+              <div id="adm-stat-money" class="font-extrabold text-xl text-emerald-700 mt-1">0 ₺</div>
+            </div>
+            <div class="soft-card rounded-2xl p-4">
+              <div class="text-[11px] font-bold text-zinc-400">Kalan Stok</div>
+              <div id="adm-stat-stock" class="font-extrabold text-xl text-zinc-900 mt-1">0</div>
+            </div>
+          </section>
+
+          <!-- ÜRÜN BAZLI SATIŞ SAYACI & ARŞİV -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-sm text-zinc-900">Menü & Ürün Bazlı Satış Özeti</h3>
+                <p class="text-[11px] text-zinc-500">Hangi üründen kaç adet sipariş geldiğini ve toplam tutarını canlı izleyin.</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span id="adm-total-items-badge" class="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-950 text-xs font-extrabold">Total: 0 Ürün</span>
+                <button type="button" onclick="AdminApp.copySettlement()" class="px-3.5 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold">
+                  Özeti Kopyala
+                </button>
+                <button type="button" onclick="AdminApp.exportCsv()" class="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold">
+                  Excel / CSV
+                </button>
+              </div>
+            </div>
+            <div id="adm-product-breakdown-pills" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
+            <div id="adm-settlement-summary" class="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 space-y-1"></div>
+
+            <div id="owner-audit-box" class="pt-3 border-t border-zinc-100 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 class="font-extrabold text-xs text-zinc-900">Gün Sonu Arşivi & İşlem Kayıtları</h4>
+                  <p class="text-[11px] text-zinc-500">Gün sonu kayıtları arşive mühürlenir, hiçbir veri kaybolmaz.</p>
+                </div>
+                <button type="button" onclick="AdminApp.archiveTodayAndReset()" class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-extrabold">
+                  Günü Arşivle & Yeni Güne Geç
+                </button>
+              </div>
+              <div id="owner-archives-list" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
+              <div class="space-y-1.5">
+                <div class="text-[11px] font-extrabold text-zinc-700">Son İşlem Hareketleri</div>
+                <div id="owner-audit-logs" class="max-h-36 overflow-y-auto rounded-2xl bg-zinc-50 border border-zinc-200 p-3 space-y-1 text-[11px] text-zinc-600"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- YENİ ÜRÜN EKLEME -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+            <h3 class="font-extrabold text-sm text-zinc-900">Mixsos Menüye Yeni Ürün Ekle</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              <input id="new-prod-name" type="text" placeholder="Ürün / Menü adı" class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs outline-none">
+              <input id="new-prod-price" type="number" placeholder="Fiyat (₺)" class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs outline-none">
+              <input id="new-prod-discount" type="number" placeholder="İndirimli Fiyat (Opsiyonel)" class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs outline-none">
+              <div class="flex gap-1.5">
+                <input id="new-prod-stock" type="number" value="25" placeholder="Stok" class="w-20 bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-2 text-xs outline-none">
+                <button type="button" onclick="AdminApp.addProduct()" class="flex-1 rounded-xl bg-zinc-900 text-white text-xs font-bold">Ekle</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- MENÜ FİYAT & STOK YÖNETİMİ -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-sm text-zinc-900">Fiyat, İndirim & Stok Yönetimi</h3>
+                <p class="text-[11px] text-zinc-500">Kaydettiğinizde menüde anında güncellenir.</p>
+              </div>
+              <button type="button" onclick="AdminApp.saveProducts()" class="px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold">Kaydet</button>
+            </div>
+            <div id="admin-products-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </section>
+
+          <!-- CANLI GELEN SİPARİŞLER -->
+          <section class="soft-card rounded-3xl p-4 sm:p-5 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+              <div>
+                <h3 class="font-extrabold text-base text-zinc-900">Canlı Gelen Siparişler</h3>
+                <p class="text-[11px] text-zinc-500">Lokasyona veya telefona göre filtreleyin, durumu tek dokunuşla güncelleyin.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="adm-order-dorm-filter" onchange="AdminApp.renderOrders()"
+                  class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-bold text-zinc-800 outline-none">
+                  <option value="ALL">Tüm Lokasyonlar</option>
+                </select>
+                <input id="adm-order-phone-search" type="text" oninput="AdminApp.renderOrders()" placeholder="Numara, isim veya kod ara..."
+                  class="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-zinc-800 outline-none">
+              </div>
+            </div>
+            <div id="admin-orders-list" class="space-y-3"></div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const FIREBASE_URL = "https://harransiparis-default-rtdb.europe-west1.firebasedatabase.app";
+    const FIREBASE_CONFIG = {
+      databaseURL: FIREBASE_URL,
+      authDomain: "harransiparis.firebaseapp.com",
+      projectId: "harransiparis"
+    };
+    const NOTIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+    // Şifre doğrulaması hash üzerinden yapılır; düz metin şifre kaynak kodda tutulmaz.
+    const DEFAULT_PASS_HASHES = {
+      admin: "46979abd2f8c03d0a0f9acbbfabc68d41a0f1d0806187742d5cd150e1a90f069",
+      business: "b2c077f1aa98dde8bd11e31d279da2aa6400a02627b7fdb714da47b0ffd661ec",
+      courier: "eabd265c27091105645c747af8cbb2d1c01051652e88ea3d3bb739c4b7bec33d"
+    };
+
+    const STATUS_STEPS = [
+      { key: "Sipariş alındı", label: "Sipariş Alındı", sub: "Siparişiniz sisteme ulaştı" },
+      { key: "Hazırlanıyor", label: "Hazırlanıyor", sub: "Mixsos mutfağında hazırlanıyor" },
+      { key: "Kurye yolda", label: "Kurye Yolda", sub: "Paketiniz dağıtıma çıktı" },
+      { key: "Yurt kapısında", label: "Teslimat Noktasında", sub: "Kurye kapıda bekliyor" },
+      { key: "Teslim edildi", label: "Teslim Edildi", sub: "Afiyet olsun!" }
+    ];
+
+    const STATUS_NOTIFICATION_MAP = {
+      "Sipariş alındı": {
+        title: "Siparişiniz alındı.",
+        desc: "Siparişiniz Mixsos sistemine başarıyla düştü."
+      },
+      "Hazırlanıyor": {
+        title: "Siparişiniz hazırlanıyor.",
+        desc: "Mixsos mutfağında siparişiniz özenle hazırlanıyor."
+      },
+      "Kuryeye verildi": {
+        title: "Siparişiniz kuryeye verildi.",
+        desc: "Paketiniz dağıtım kuryesine teslim edildi."
+      },
+      "Kurye yolda": {
+        title: "Siparişiniz yola çıktı.",
+        desc: "Kurye teslimat noktanıza doğru hareket etti."
+      },
+      "Yurt kapısında": {
+        title: "Siparişiniz kapıda.",
+        desc: "Kurye teslimat noktanızda! Teslim almak için çıkabilirsiniz."
+      },
+      "Teslim edildi": {
+        title: "Siparişiniz teslim edildi.",
+        desc: "Afiyet olsun! Sipariş teslimatı tamamlandı."
+      },
+      "İptal edildi": {
+        title: "Siparişiniz iptal edildi.",
+        desc: "Siparişiniz iptal edildi."
+      }
+    };
+
+    const DEFAULT_PRODUCTS = [
+      { id: "mix_1", restaurant: "Mixsos", name: "Terbiyeli Tavuk Dürüm", desc: "Özel soslu terbiyeli tavuk dürüm", price: 155, discountPrice: 140, stock: 40 },
+      { id: "mix_2", restaurant: "Mixsos", name: "Terbiyesiz Tavuk Dürüm", desc: "Sade / terbiyesiz tavuk dürüm", price: 150, discountPrice: 135, stock: 40 },
+      { id: "mix_3", restaurant: "Mixsos", name: "Mixsos Özel Soslu Tavuk Menü", desc: "Özel soslu tavuk, patates ve içecek", price: 165, discountPrice: 0, stock: 30 },
+      { id: "mix_4", restaurant: "Mixsos", name: "Mixsos Mega Soslu Sandviç Menü", desc: "Bol soslu sandviç ve patates", price: 160, discountPrice: 0, stock: 30 }
+    ];
+
+    const DEFAULT_LOCATIONS = [
+      { id: "loc_1", type: "Yurt", name: "1. Durak: Karahantepe Yurdu" },
+      { id: "loc_2", type: "Yurt", name: "2. Durak: Harran Yurdu" },
+      { id: "loc_3", type: "Yurt", name: "3. Durak: Hacer Ana Yurdu" },
+      { id: "loc_4", type: "Yurt", name: "4. Durak: Göbeklitepe Yurdu" }
+    ];
+
+    const DEFAULT_PAYMENT_CONFIG = {
+      cashEnabled: true,
+      posEnabled: false,
+      ibanEnabled: false,
+      ibanHolder: "",
+      ibanNumber: ""
+    };
+
+    function safeLoadJSON(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed ?? fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    async function sha256Hex(text) {
+      const data = new TextEncoder().encode(String(text || ""));
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    const State = {
+      products: safeLoadJSON("sy_cache_products", null) || JSON.parse(JSON.stringify(DEFAULT_PRODUCTS)),
+      locations: safeLoadJSON("sy_cache_locations", null) || JSON.parse(JSON.stringify(DEFAULT_LOCATIONS)),
+      paymentConfig: { ...DEFAULT_PAYMENT_CONFIG, ...(safeLoadJSON("sy_cache_payment", {}) || {}) },
+      orders: [],
+      ledgerOrders: [],
+      ordersOpen: true,
+      pricesVisible: true,
+      siteLocked: false,
+      siteLockReason: "Sistem yönetici tarafından geçici olarak kapatılmıştır.",
+      businessLocked: false,
+      uid: null,
+      idToken: null,
+      notifications: safeLoadJSON("sy_cache_notifications", []) || [],
+      myOrders: safeLoadJSON("sy_cache_my_orders", []) || [],
+      announcement: localStorage.getItem("sy_cache_announcement") || "Siparişleriniz taze hazırlanıp seçtiğiniz yurt veya fakülte noktasına teslim edilir.",
+      announcementUpdatedAt: localStorage.getItem("sy_cache_announcement_time") || "",
+      archives: [],
+      auditLogs: [],
+      passHashes: { ...DEFAULT_PASS_HASHES },
+      onlyDiscount: false,
+      cart: safeLoadJSON("sy_cart", {}) || {},
+      lastOrderId: localStorage.getItem("sy_last_order_id") || "",
+      account: safeLoadJSON("sy_account", null) || {
+        name: "",
+        phone: "",
+        dorm: "1. Durak: Karahantepe Yurdu",
+        payment: "Kapıda Ödeme"
+      }
+    };
+
+    const App = {
+      toastTimer: null,
+      async init() {
+        ShopApp.renderLocations();
+        ShopApp.renderPaymentOptions();
+        this.applyAccountToForm();
+        this.applySettingsUI();
+        ShopApp.renderMenu();
+        ShopApp.renderCart();
+        NotificationApp.render();
+        NotificationApp.renderMyOrders();
+        PwaApp.init();
+
+        await AuthApp.init();
+        await this.syncCloud();
+        setInterval(() => this.syncCloud(), 2500);
+
+        if (State.lastOrderId) {
+          document.getElementById("track-input").value = State.lastOrderId;
+          TrackApp.refreshMiniCard();
+          TrackApp.lookup(true);
+        }
+      },
+      toast(msg) {
+        const wrap = document.getElementById("toast");
+        document.getElementById("toast-text").textContent = msg;
+        wrap.classList.remove("opacity-0", "-translate-y-2");
+        wrap.classList.add("opacity-100", "translate-y-0");
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          wrap.classList.add("opacity-0", "-translate-y-2");
+          wrap.classList.remove("opacity-100", "translate-y-0");
+        }, 2300);
+      },
+      formatPhone(inp) {
+        let d = inp.value.replace(/\D/g, "");
+        if (d.length > 0 && d[0] !== "0") d = "0" + d;
+        d = d.slice(0, 11);
+        let out = "";
+        if (d.length > 0) out += d.slice(0, 4);
+        if (d.length > 4) out += " " + d.slice(4, 7);
+        if (d.length > 7) out += " " + d.slice(7, 9);
+        if (d.length > 9) out += " " + d.slice(9, 11);
+        inp.value = out;
+      },
+      setTab(tab) {
+        ["shop", "track", "admin"].forEach(t => {
+          document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
+          const btn = document.getElementById(`btn-tab-${t}`);
+          btn.className = t === tab
+            ? "px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-900 text-white transition flex items-center gap-1.5"
+            : "px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-900 transition flex items-center gap-1.5";
+        });
+        if (tab === "track" && document.getElementById("track-input").value.trim()) TrackApp.lookup(true);
+        if (tab === "admin" && AdminApp.loggedIn) AdminApp.fetchOrders(true);
+      },
+      openAccountModal() {
+        ShopApp.renderLocations();
+        ShopApp.renderPaymentOptions();
+        document.getElementById("acc-name").value = State.account.name || "";
+        document.getElementById("acc-phone").value = State.account.phone || "";
+        const accDorm = document.getElementById("acc-dorm");
+        if ([...accDorm.options].some(o => o.value === State.account.dorm)) {
+          accDorm.value = State.account.dorm;
+        }
+        const accPay = document.getElementById("acc-payment");
+        if ([...accPay.options].some(o => o.value === State.account.payment)) {
+          accPay.value = State.account.payment;
+        }
+        document.getElementById("account-modal").classList.remove("hidden");
+      },
+      closeAccountModal() {
+        document.getElementById("account-modal").classList.add("hidden");
+      },
+      saveAccount() {
+        State.account = {
+          name: document.getElementById("acc-name").value.trim(),
+          phone: document.getElementById("acc-phone").value.trim(),
+          dorm: document.getElementById("acc-dorm").value,
+          payment: document.getElementById("acc-payment").value
+        };
+        localStorage.setItem("sy_account", JSON.stringify(State.account));
+        this.applyAccountToForm();
+        this.closeAccountModal();
+        this.toast("Bilgileriniz kaydedildi.");
+      },
+      applyAccountToForm() {
+        const badge = document.getElementById("header-user-badge");
+        if (State.account.name) {
+          badge.textContent = State.account.name;
+          const nameInp = document.getElementById("order-name");
+          if (document.activeElement !== nameInp) nameInp.value = State.account.name;
+        } else {
+          badge.textContent = "Misafir";
+        }
+        if (State.account.phone) {
+          const phoneInp = document.getElementById("order-phone");
+          if (document.activeElement !== phoneInp) phoneInp.value = State.account.phone;
+        }
+        const radios = document.querySelectorAll('input[name="dorm"]');
+        if (radios.length > 0) {
+          let matched = false;
+          radios.forEach(r => {
+            if (r.value === State.account.dorm) {
+              r.checked = true;
+              matched = true;
+            } else {
+              r.checked = false;
+            }
+          });
+          if (!matched) radios[0].checked = true;
+        }
+        const paySel = document.getElementById("order-payment");
+        if (paySel && [...paySel.options].some(o => o.value === State.account.payment)) {
+          paySel.value = State.account.payment;
+        }
+        ShopApp.onPaymentChange();
+        ShopApp.renderCart();
+      },
+      applySettingsUI() {
+        const badge = document.getElementById("store-open-badge");
+        if (State.ordersOpen && !State.siteLocked) {
+          badge.textContent = "● Sipariş Alımı Açık";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800";
+          document.getElementById("closed-notice").classList.add("hidden");
+        } else {
+          badge.textContent = State.siteLocked ? "● Site Kilitli" : "● Sipariş Alımı Kapalı";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800";
+          document.getElementById("closed-notice").classList.remove("hidden");
+        }
+        document.getElementById("live-announcement-text").textContent = State.announcement || "Siparişleriniz taze hazırlanıp seçtiğiniz yurt veya fakülte noktasına teslim edilir.";
+        const annTimeEl = document.getElementById("live-announcement-time");
+        if (annTimeEl) {
+          if (State.announcementUpdatedAt) {
+            annTimeEl.textContent = `Son güncelleme: ${State.announcementUpdatedAt}`;
+            annTimeEl.classList.remove("hidden");
+          } else {
+            annTimeEl.classList.add("hidden");
+          }
+        }
+
+        const overlay = document.getElementById("site-lock-overlay");
+        const reasonEl = document.getElementById("site-lock-reason");
+        if (reasonEl) reasonEl.textContent = State.siteLockReason || "Sistem yönetici tarafından geçici olarak kapatılmıştır.";
+        const isOwnerLoggedIn = AdminApp.loggedIn && AdminApp.role === "admin";
+        if (overlay) {
+          overlay.classList.toggle("hidden", !State.siteLocked || isOwnerLoggedIn);
+        }
+
+        if (AdminApp.loggedIn && AdminApp.role === "business" && State.businessLocked) {
+          AdminApp.logout();
+          this.toast("Yönetici işletme erişimini dondurdu.");
+        }
+
+        const btnKill = document.getElementById("btn-site-killswitch");
+        if (btnKill) {
+          btnKill.textContent = State.siteLocked ? "Site Kilidini Aç (Aktifleştir)" : "Siteyi Tamamen Kapat";
+          btnKill.className = State.siteLocked
+            ? "px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition"
+            : "px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition";
+        }
+        const btnBizLock = document.getElementById("btn-business-lock");
+        if (btnBizLock) {
+          btnBizLock.textContent = State.businessLocked ? "İşletme Kilidini Aç" : "İşletme Girişini Dondur";
+          btnBizLock.className = State.businessLocked
+            ? "px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-extrabold transition"
+            : "px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-extrabold transition";
+        }
+      },
+      async syncCloud() {
+        try {
+          const [pRes, sRes, lRes] = await Promise.all([
+            fetch(`${FIREBASE_URL}/products.json`),
+            fetch(`${FIREBASE_URL}/settings.json`),
+            fetch(`${FIREBASE_URL}/locations.json`)
+          ]);
+          if (pRes.ok) {
+            const p = await pRes.json();
+            if (Array.isArray(p) && p.length > 0) {
+              State.products = p.map(item => ({ ...item, restaurant: "Mixsos" }));
+              localStorage.setItem("sy_cache_products", JSON.stringify(State.products));
+              ShopApp.renderMenu();
+              ShopApp.renderCart();
+              if (AdminApp.loggedIn) {
+                AdminApp.renderProducts();
+                AdminApp.renderStats();
+              }
+            }
+          }
+          if (lRes.ok) {
+            const locs = await lRes.json();
+            if (Array.isArray(locs) && locs.length > 0) {
+              const changed = JSON.stringify(locs) !== JSON.stringify(State.locations);
+              State.locations = locs;
+              localStorage.setItem("sy_cache_locations", JSON.stringify(State.locations));
+              if (changed) {
+                ShopApp.renderLocations();
+                if (AdminApp.loggedIn) {
+                  AdminApp.renderLocations();
+                  AdminApp.renderCourierView();
+                  AdminApp.renderOrders();
+                }
+              }
+            }
+          }
+          if (sRes.ok) {
+            const s = await sRes.json();
+            if (s && typeof s === "object") {
+              if (typeof s.ordersOpen === "boolean") State.ordersOpen = s.ordersOpen;
+              if (typeof s.pricesVisible === "boolean") State.pricesVisible = s.pricesVisible;
+              if (typeof s.siteLocked === "boolean") State.siteLocked = s.siteLocked;
+              if (typeof s.siteLockReason === "string" && s.siteLockReason.trim()) State.siteLockReason = s.siteLockReason;
+              if (typeof s.businessLocked === "boolean") State.businessLocked = s.businessLocked;
+              if (typeof s.announcement === "string" && s.announcement.trim()) {
+                State.announcement = s.announcement;
+                localStorage.setItem("sy_cache_announcement", State.announcement);
+              }
+              if (typeof s.announcementUpdatedAt === "string") {
+                State.announcementUpdatedAt = s.announcementUpdatedAt;
+                localStorage.setItem("sy_cache_announcement_time", s.announcementUpdatedAt);
+              }
+              if (s.paymentConfig && typeof s.paymentConfig === "object") {
+                const nextPay = { ...DEFAULT_PAYMENT_CONFIG, ...s.paymentConfig };
+                const payChanged = JSON.stringify(nextPay) !== JSON.stringify(State.paymentConfig);
+                State.paymentConfig = nextPay;
+                localStorage.setItem("sy_cache_payment", JSON.stringify(nextPay));
+                if (payChanged) {
+                  ShopApp.renderPaymentOptions();
+                }
+              }
+              const staleHashes = new Set([
+                "12008df48bd5d4d61cc9c51c98eb165a2e7226d1532bd7e59e3078916d308ee9",
+                "e2c8a28791df2f72ef0f94366ab1417d9b006bc3cd91d1d4cb994995d57f59a4",
+                "4a69df6466d5e03f2685675cdba3c8f5ed4b3fc65134625e6f8368f9f01809e9"
+              ]);
+              if (typeof s.adminPassHash === "string" && s.adminPassHash.trim() && !staleHashes.has(s.adminPassHash.trim())) State.passHashes.admin = s.adminPassHash.trim();
+              if (typeof s.businessPassHash === "string" && s.businessPassHash.trim() && !staleHashes.has(s.businessPassHash.trim())) State.passHashes.business = s.businessPassHash.trim();
+              if (typeof s.courierPassHash === "string" && s.courierPassHash.trim() && !staleHashes.has(s.courierPassHash.trim())) State.passHashes.courier = s.courierPassHash.trim();
+
+              this.applySettingsUI();
+              ShopApp.renderMenu();
+              ShopApp.renderCart();
+            }
+          }
+          await NotificationApp.sync();
+          if (State.lastOrderId) {
+            TrackApp.refreshMiniCard();
+            if (!document.getElementById("tab-track").classList.contains("hidden")) {
+              TrackApp.lookup(true);
+            }
+          }
+        } catch (e) {}
+      },
+      esc(v) {
+        const d = document.createElement("div");
+        d.textContent = String(v ?? "");
+        return d.innerHTML;
+      }
+    };
+
+    const ShopApp = {
+      effectivePrice(prod) {
+        const base = Math.max(0, Number(prod.price) || 0);
+        const disc = Math.max(0, Number(prod.discountPrice) || 0);
+        if (disc > 0 && disc < base) return { current: disc, original: base, discounted: true };
+        return { current: base, original: base, discounted: false };
+      },
+      renderLocations() {
+        const locs = State.locations && State.locations.length > 0 ? State.locations : DEFAULT_LOCATIONS;
+        const checkedRadio = document.querySelector('input[name="dorm"]:checked');
+        const currentSelected = (checkedRadio && checkedRadio.value) || State.account.dorm || locs[0].name;
+
+        const grid = document.getElementById("dorm-options-grid");
+        if (grid) {
+          grid.innerHTML = locs.map((loc, idx) => {
+            const isChecked = loc.name === currentSelected || (!locs.some(x => x.name === currentSelected) && idx === 0);
+            const badgeText = loc.type === "Fakülte" ? "Fakülte Teslimat" : (loc.type === "Kampüs Noktası" ? "Kampüs Noktası" : `${idx + 1}. Sıra • Yurt`);
+            return `
+              <label class="cursor-pointer">
+                <input type="radio" name="dorm" value="${App.esc(loc.name)}" onchange="ShopApp.onDormChange()" class="peer sr-only" ${isChecked ? "checked" : ""}>
+                <div class="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 peer-checked:border-zinc-900 peer-checked:bg-amber-50/70 transition">
+                  <div class="text-[10px] font-extrabold uppercase ${loc.type === "Fakülte" ? "text-sky-700" : "text-amber-700"}">${App.esc(badgeText)}</div>
+                  <div class="font-bold text-xs text-zinc-900 mt-0.5">${App.esc(loc.name)}</div>
+                </div>
+              </label>
+            `;
+          }).join("");
+        }
+
+        const subEl = document.getElementById("header-route-subtitle");
+        if (subEl) {
+          subEl.textContent = locs.map(l => l.name.replace(/^\d+\.\s*Durak:\s*/, "")).join(" • ");
+        }
+
+        ["acc-dorm", "adm-order-dorm-filter", "cur-dorm-filter"].forEach(selId => {
+          const sel = document.getElementById(selId);
+          if (!sel) return;
+          const prev = sel.value;
+          const isFilter = selId !== "acc-dorm";
+          sel.innerHTML = (isFilter ? `<option value="ALL">Tüm Lokasyonlar</option>` : "") +
+            locs.map(l => `<option value="${App.esc(l.name)}">${App.esc(l.name)} (${App.esc(l.type || "Yurt")})</option>`).join("");
+          if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+        });
+
+        this.onDormChange();
+      },
+      onDormChange() {
+        const checkedRadio = document.querySelector('input[name="dorm"]:checked');
+        const val = checkedRadio ? checkedRadio.value : "";
+        const sumDorm = document.getElementById("summary-dorm");
+        if (sumDorm && val) sumDorm.textContent = val;
+        if (val) {
+          State.account.dorm = val;
+          localStorage.setItem("sy_account", JSON.stringify(State.account));
+        }
+      },
+      renderPaymentOptions() {
+        const cfg = State.paymentConfig || DEFAULT_PAYMENT_CONFIG;
+        const options = [];
+        if (cfg.cashEnabled !== false) options.push("Kapıda Ödeme");
+        if (cfg.posEnabled) options.push("Kapıda POS");
+        if (cfg.ibanEnabled) options.push("IBAN / Havale");
+        if (options.length === 0) options.push("Kapıda Ödeme");
+
+        ["order-payment", "acc-payment"].forEach(selId => {
+          const sel = document.getElementById(selId);
+          if (!sel) return;
+          const prev = sel.value || State.account.payment;
+          sel.innerHTML = options.map(opt => `<option value="${App.esc(opt)}">${App.esc(opt)}</option>`).join("");
+          if (options.includes(prev)) sel.value = prev;
+        });
+        this.onPaymentChange();
+      },
+      onPaymentChange() {
+        const sel = document.getElementById("order-payment");
+        if (!sel) return;
+        const val = sel.value;
+        const sumPay = document.getElementById("summary-payment");
+        if (sumPay) sumPay.textContent = val;
+
+        const ibanBox = document.getElementById("payment-iban-info");
+        const cfg = State.paymentConfig || DEFAULT_PAYMENT_CONFIG;
+        if (ibanBox) {
+          if (val === "IBAN / Havale" && (cfg.ibanNumber || cfg.ibanHolder)) {
+            ibanBox.classList.remove("hidden");
+            ibanBox.innerHTML = `
+              <div class="font-extrabold text-amber-900">Havale / EFT Bilgisi</div>
+              ${cfg.ibanHolder ? `<div>Alıcı: <strong>${App.esc(cfg.ibanHolder)}</strong></div>` : ""}
+              ${cfg.ibanNumber ? `<div class="font-mono font-bold select-all">${App.esc(cfg.ibanNumber)}</div>` : ""}
+            `;
+          } else {
+            ibanBox.classList.add("hidden");
+          }
+        }
+        State.account.payment = val;
+        localStorage.setItem("sy_account", JSON.stringify(State.account));
+      },
+      syncFormToLocal() {
+        const name = document.getElementById("order-name")?.value.trim() || "";
+        const phone = document.getElementById("order-phone")?.value.trim() || "";
+        State.account.name = name;
+        State.account.phone = phone;
+        localStorage.setItem("sy_account", JSON.stringify(State.account));
+        const badge = document.getElementById("header-user-badge");
+        if (badge) badge.textContent = name || "Misafir";
+      },
+      toggleDiscountFilter() {
+        State.onlyDiscount = !State.onlyDiscount;
+        const btn = document.getElementById("btn-only-discount");
+        btn.className = State.onlyDiscount
+          ? "px-3 py-1.5 rounded-xl border border-zinc-900 bg-zinc-900 text-white text-xs font-bold shrink-0"
+          : "px-3 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 text-xs font-bold shrink-0";
+        this.renderMenu();
+      },
+      changeQty(id, delta) {
+        const prod = State.products.find(x => x.id === id);
+        if (!prod) return;
+        const stock = Math.max(0, Number(prod.stock) || 0);
+        const cur = State.cart[id] || 0;
+        if (delta > 0 && cur >= stock) {
+          App.toast("Stok sınırına ulaşıldı.");
+          return;
+        }
+        const next = Math.max(0, Math.min(stock, cur + delta));
+        if (next === 0) delete State.cart[id];
+        else State.cart[id] = next;
+        localStorage.setItem("sy_cart", JSON.stringify(State.cart));
+        this.renderMenu();
+        this.renderCart();
+      },
+      renderMenu() {
+        const q = (document.getElementById("search-input")?.value || "").toLowerCase().trim();
+        const items = State.products.filter(p => {
+          const pr = this.effectivePrice(p);
+          const discOk = !State.onlyDiscount || pr.discounted;
+          const qOk = !q || p.name.toLowerCase().includes(q) || (p.desc || "").toLowerCase().includes(q);
+          return discOk && qOk;
+        });
+
+        const grid = document.getElementById("menu-grid");
+        if (items.length === 0) {
+          grid.innerHTML = `<div class="col-span-full text-center py-6 text-xs text-zinc-400">Ürün bulunamadı.</div>`;
+          return;
+        }
+
+        grid.innerHTML = items.map(p => {
+          const qty = State.cart[p.id] || 0;
+          const stock = Math.max(0, Number(p.stock) || 0);
+          const pr = this.effectivePrice(p);
+          return `
+            <div class="p-4 rounded-2xl bg-zinc-50/80 border ${qty > 0 ? "border-zinc-900 bg-amber-50/30" : "border-zinc-200"} flex flex-col justify-between gap-3">
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-[#d62828] text-white">Mixsos</span>
+                  <div class="flex items-center gap-1.5">
+                    ${pr.discounted ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">İndirimli</span>` : ""}
+                    <span class="text-[11px] font-semibold ${stock > 0 ? "text-zinc-500" : "text-rose-600"}">${stock > 0 ? `Stok: ${stock}` : "Tükendi"}</span>
+                  </div>
+                </div>
+                <div class="font-bold text-sm text-zinc-900 mt-2">${App.esc(p.name)}</div>
+                <div class="text-xs text-zinc-500 mt-0.5">${App.esc(p.desc || "")}</div>
+              </div>
+
+              <div class="flex items-center justify-between pt-2.5 border-t border-zinc-200/70">
+                <div>
+                  ${State.pricesVisible
+                    ? (pr.discounted
+                        ? `<span class="line-through text-xs text-zinc-400 mr-1">${pr.original} ₺</span><span class="font-extrabold text-sm text-emerald-700">${pr.current} ₺</span>`
+                        : `<span class="font-extrabold text-sm text-zinc-900">${pr.current} ₺</span>`)
+                    : `<span class="text-xs font-semibold text-zinc-400">Fiyat Gizli</span>`
+                  }
+                </div>
+
+                ${qty === 0
+                  ? `<button type="button" onclick="ShopApp.changeQty('${p.id}', 1)" ${stock <= 0 ? "disabled" : ""}
+                      class="px-3.5 py-1.5 rounded-xl bg-zinc-900 text-white text-xs font-bold disabled:opacity-40">
+                      + Ekle
+                    </button>`
+                  : `<div class="flex items-center gap-1.5 bg-white border border-zinc-300 rounded-xl px-1.5 py-1">
+                      <button type="button" onclick="ShopApp.changeQty('${p.id}', -1)" class="w-6 h-6 rounded-lg bg-zinc-100 font-bold text-xs">-</button>
+                      <span class="w-5 text-center font-extrabold text-xs">${qty}</span>
+                      <button type="button" onclick="ShopApp.changeQty('${p.id}', 1)" class="w-6 h-6 rounded-lg bg-zinc-900 text-white font-bold text-xs">+</button>
+                    </div>`
+                }
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+      renderCart() {
+        const box = document.getElementById("cart-items");
+        const selected = State.products.filter(p => (State.cart[p.id] || 0) > 0);
+        let count = 0;
+        let subtotal = 0;
+
+        if (selected.length === 0) {
+          box.innerHTML = `<div class="text-xs text-zinc-400 py-4 text-center">Sepetiniz boş. Menüden ürün seçin.</div>`;
+        } else {
+          box.innerHTML = selected.map(p => {
+            const q = State.cart[p.id];
+            const pr = this.effectivePrice(p);
+            count += q;
+            subtotal += q * pr.current;
+            return `
+              <div class="flex items-center justify-between gap-2 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs">
+                <div class="min-w-0">
+                  <div class="font-bold text-zinc-900 truncate">${q}x ${App.esc(p.name)}</div>
+                  <div class="text-[11px] text-zinc-500">Mixsos${State.pricesVisible ? ` • ${q * pr.current} ₺` : ""}</div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button type="button" onclick="ShopApp.changeQty('${p.id}', -1)" class="w-6 h-6 rounded-lg bg-white border border-zinc-200 font-bold">-</button>
+                  <button type="button" onclick="ShopApp.changeQty('${p.id}', 1)" class="w-6 h-6 rounded-lg bg-zinc-900 text-white font-bold">+</button>
+                </div>
+              </div>
+            `;
+          }).join("");
+        }
+
+        document.getElementById("cart-badge").textContent = `${count} Ürün`;
+        const totalRow = document.getElementById("summary-total-row");
+        if (State.pricesVisible) {
+          totalRow.classList.remove("hidden");
+          document.getElementById("summary-total").textContent = `${subtotal} ₺`;
+        } else {
+          totalRow.classList.add("hidden");
+        }
+      },
+      async submitOrder() {
+        if (State.siteLocked || !State.ordersOpen) {
+          App.toast("Sipariş alımı şu an kapalı.");
+          return;
+        }
+        const name = document.getElementById("order-name").value.trim();
+        const phone = document.getElementById("order-phone").value.trim();
+        const payment = document.getElementById("order-payment").value;
+        const note = document.getElementById("order-note").value.trim() || "-";
+        const dormRadio = document.querySelector('input[name="dorm"]:checked');
+        const dorm = dormRadio ? dormRadio.value : (State.locations[0]?.name || "1. Durak: Karahantepe Yurdu");
+
+        if (!name) { App.toast("Lütfen Ad Soyad girin."); return; }
+        if (phone.replace(/\D/g, "").length < 11) { App.toast("Lütfen 11 haneli telefon numarası girin."); return; }
+
+        const items = State.products
+          .filter(p => (State.cart[p.id] || 0) > 0)
+          .map(p => {
+            const pr = this.effectivePrice(p);
+            return { id: p.id, restaurant: "Mixsos", name: p.name, qty: State.cart[p.id], unitPrice: pr.current };
+          });
+
+        if (items.length === 0) { App.toast("Sepetinizde ürün yok."); return; }
+
+        const totalPrice = items.reduce((s, x) => s + x.qty * x.unitPrice, 0);
+        const orderId = "SY-" + Math.floor(10000 + Math.random() * 90000);
+
+        const ownerUid = await AuthApp.ensureUid();
+        if (!ownerUid) {
+          App.toast("Oturum doğrulanamadı, tekrar deneyin.");
+          return;
+        }
+
+        const orderPayload = {
+          id: orderId,
+          ownerUid,
+          createdAt: Date.now(),
+          time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+          restaurant: "Mixsos",
+          dorm,
+          customerName: name,
+          phone,
+          payment,
+          totalPrice,
+          note,
+          items,
+          status: "Sipariş alındı"
+        };
+
+        State.products = State.products.map(p => {
+          const q = State.cart[p.id] || 0;
+          return q > 0 ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - q) } : p;
+        });
+
+        const authQuery = await AuthApp.authQuery();
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/orders/${orderId}.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderPayload)
+            }),
+            fetch(`${FIREBASE_URL}/order_ledger/${orderId}.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...orderPayload, deletedByBusiness: false, deletedAt: null })
+            }),
+            fetch(`${FIREBASE_URL}/user_orders/${ownerUid}/${orderId}.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderPayload)
+            }),
+            fetch(`${FIREBASE_URL}/products.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(State.products)
+            })
+          ]);
+          await NotificationApp.createOnce({
+            targetUid: ownerUid,
+            orderId,
+            status: "Sipariş alındı",
+            dorm,
+            createdAt: orderPayload.createdAt
+          });
+          await NotificationApp.sync();
+        } catch (e) {
+          App.toast("Bağlantı hatası oluştu.");
+          return;
+        }
+
+        State.cart = {};
+        localStorage.removeItem("sy_cart");
+        State.lastOrderId = orderId;
+        localStorage.setItem("sy_last_order_id", orderId);
+        State.account = { name, phone, dorm, payment };
+        localStorage.setItem("sy_account", JSON.stringify(State.account));
+
+        State.myOrders = [orderPayload, ...(State.myOrders || []).filter(x => x.id !== orderId)];
+        localStorage.setItem("sy_cache_my_orders", JSON.stringify(State.myOrders));
+
+        document.getElementById("order-note").value = "";
+        document.getElementById("track-input").value = orderId;
+
+        this.renderMenu();
+        this.renderCart();
+        NotificationApp.renderMyOrders();
+        TrackApp.refreshMiniCard();
+        App.toast(`Siparişiniz (#${orderId}) alındı.`);
+        PwaApp.sendSystemNotification(`Siparişiniz Alındı (#${orderId})`, `${dorm} noktasına teslimat için mutfağa iletildi.`);
+        App.setTab("track");
+      }
+    };
+
+    const TrackApp = {
+      async refreshMiniCard() {
+        if (!State.lastOrderId) return;
+        try {
+          const res = await fetch(`${FIREBASE_URL}/orders/${State.lastOrderId}.json`);
+          const o = res.ok ? await res.json() : (State.myOrders || []).find(x => x.id === State.lastOrderId);
+          if (!o) return;
+          document.getElementById("mini-track-card").classList.remove("hidden");
+          document.getElementById("mini-track-body").innerHTML = `
+            <div>#${App.esc(o.id)} • ${App.esc(o.dorm)}</div>
+            <div class="font-bold text-emerald-700 mt-0.5">Durum: ${App.esc(o.status)}</div>
+          `;
+        } catch (e) {}
+      },
+      renderProgressTimeline(status) {
+        if (status === "İptal edildi") {
+          return `<div class="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-extrabold">Bu sipariş iptal edilmiştir.</div>`;
+        }
+        const normalized = status === "Kuryeye verildi" ? "Kurye yolda" : status;
+        const activeIdx = STATUS_STEPS.findIndex(s => s.key === normalized);
+        const currentIdx = activeIdx === -1 ? 0 : activeIdx;
+
+        return `
+          <div class="space-y-2 pt-1">
+            ${STATUS_STEPS.map((st, idx) => {
+              const done = idx <= currentIdx;
+              const isCurrent = idx === currentIdx;
+              return `
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold shrink-0 ${done ? "bg-emerald-600 text-white" : "bg-zinc-200 text-zinc-500"}">
+                    ${done ? "✓" : idx + 1}
+                  </div>
+                  <div class="flex-1 flex items-center justify-between border-b border-zinc-100 pb-1.5">
+                    <div>
+                      <div class="text-xs font-extrabold ${isCurrent ? "text-emerald-700" : (done ? "text-zinc-900" : "text-zinc-400")}">${App.esc(st.label)}</div>
+                      <div class="text-[10px] ${done ? "text-zinc-500" : "text-zinc-400"}">${App.esc(st.sub)}</div>
+                    </div>
+                    ${isCurrent ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">Şu An</span>` : ""}
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `;
+      },
+      async lookup(silent = false) {
+        const code = document.getElementById("track-input").value.trim().toUpperCase();
+        const box = document.getElementById("track-result");
+        if (!code) {
+          if (!silent) App.toast("Sipariş kodu girin.");
+          return;
+        }
+        try {
+          let o = null;
+          const res = await fetch(`${FIREBASE_URL}/orders/${code}.json`);
+          if (res.ok) o = await res.json();
+          if (!o) {
+            o = (State.myOrders || []).find(x => x.id === code) || null;
+          }
+          if (!o) {
+            box.innerHTML = `<div class="p-4 rounded-2xl bg-rose-50 text-rose-700 text-xs font-bold">Sipariş bulunamadı.</div>`;
+            return;
+          }
+          const listStr = (o.items || []).map(x => `${x.qty}x ${x.name}`).join(", ");
+
+          box.innerHTML = `
+            <div class="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3 text-xs">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-extrabold text-sm text-zinc-900">#${App.esc(o.id)}</span>
+                  <span class="text-[11px] text-zinc-500 ml-1.5">${App.esc(o.time || "")}</span>
+                </div>
+                <span class="px-2.5 py-1 rounded-full ${o.status === "İptal edildi" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"} font-bold">${App.esc(o.status)}</span>
+              </div>
+
+              ${this.renderProgressTimeline(o.status)}
+
+              <div class="pt-2 border-t border-zinc-200/80 space-y-1">
+                <div class="font-bold text-zinc-800">${App.esc(o.customerName)} • ${App.esc(o.dorm)}</div>
+                <div class="text-zinc-600">${App.esc(listStr)}</div>
+                <div class="text-zinc-500">Ödeme: <strong>${App.esc(o.payment || "")}</strong> • Tutar: <strong>${o.totalPrice || 0} ₺</strong></div>
+              </div>
+
+
+            </div>
+          `;
+        } catch (e) {}
+      }
+    };
+
+    const AdminApp = {
+      loggedIn: false,
+      selectedLoginRole: "admin",
+      role: "admin",
+      timer: null,
+      knownIds: new Set(),
+
+      selectLoginRole(roleKey) {
+        this.selectedLoginRole = roleKey;
+        const map = {
+          admin: {
+            label: "Yönetici tam yetki, ayarlar ve hesap defteri girişi.",
+            placeholder: "Yönetici Şifresi"
+          },
+          business: {
+            label: "İşletme sipariş, menü ve lokasyon yönetimi girişi.",
+            placeholder: "İşletme Şifresi"
+          },
+          courier: {
+            label: "Kurye rota, toplu bildirim ve teslimat girişi.",
+            placeholder: "Kurye Şifresi"
+          }
+        };
+        const cfg = map[roleKey] || map.admin;
+        ["admin", "business", "courier"].forEach(k => {
+          const btn = document.getElementById(`role-tab-${k}`);
+          if (btn) {
+            btn.className = k === roleKey
+              ? "py-2 px-2 rounded-xl text-[11px] font-extrabold bg-zinc-900 text-white transition"
+              : "py-2 px-2 rounded-xl text-[11px] font-extrabold text-zinc-600 hover:text-zinc-900 transition";
+          }
+        });
+        const hintEl = document.getElementById("login-role-hint");
+        if (hintEl) hintEl.textContent = cfg.label;
+        const passInp = document.getElementById("admin-pass-input");
+        if (passInp) passInp.placeholder = cfg.placeholder;
+      },
+
+      beep() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.setValueAtTime(780, ctx.currentTime);
+          gain.gain.setValueAtTime(0.14, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        } catch (e) {}
+      },
+
+      applyRoleUI() {
+        const badge = document.getElementById("adm-role-badge");
+        const isOwner = this.role === "admin";
+        const isCourier = this.role === "courier";
+        if (badge) {
+          badge.textContent = isOwner ? "Yönetici (Tam Yetki)" : (isCourier ? "Kurye" : "İşletme (Mixsos)");
+          badge.className = isOwner
+            ? "px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900"
+            : "px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-900";
+        }
+        const courierPanel = document.getElementById("courier-mode-panel");
+        const managerPanel = document.getElementById("manager-mode-panel");
+        if (courierPanel) courierPanel.classList.toggle("hidden", !isCourier);
+        if (managerPanel) managerPanel.classList.toggle("hidden", isCourier);
+
+        const passBox = document.getElementById("adm-password-box");
+        if (passBox) passBox.classList.toggle("hidden", !isOwner);
+        const masterBox = document.getElementById("owner-master-controls");
+        if (masterBox) masterBox.classList.toggle("hidden", !isOwner);
+        const auditBox = document.getElementById("owner-audit-box");
+        if (auditBox) auditBox.classList.toggle("hidden", !isOwner);
+        const clearBtn = document.getElementById("btn-adm-clear-orders");
+        if (clearBtn) clearBtn.classList.toggle("hidden", !isOwner);
+      },
+
+      async logAction(actionText) {
+        const entry = {
+          id: "LOG-" + Date.now() + "-" + Math.floor(100 + Math.random() * 900),
+          at: new Date().toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          ts: Date.now(),
+          actor: this.role === "admin" ? "Yönetici" : (this.role === "courier" ? "Kurye" : "İşletme"),
+          action: actionText
+        };
+        try {
+          await fetch(`${FIREBASE_URL}/audit_logs/${entry.id}.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entry)
+          });
+        } catch (e) {}
+      },
+
+      async toggleSiteLock() {
+        if (this.role !== "admin") return;
+        const nextVal = !State.siteLocked;
+        State.siteLocked = nextVal;
+        App.applySettingsUI();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/siteLocked.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(nextVal)
+          });
+          await this.logAction(nextVal ? "Site yönetici tarafından kapatıldı." : "Site kilidi açıldı.");
+          App.toast(nextVal ? "Site kapatıldı." : "Site yayına açıldı.");
+        } catch (e) {}
+      },
+
+      async unlockFromOverlay() {
+        const pass = (document.getElementById("lock-unlock-pass")?.value || "").trim();
+        const inputHash = await sha256Hex(pass);
+        if (inputHash !== State.passHashes.admin) {
+          App.toast("Hatalı yönetici şifresi.");
+          return;
+        }
+        document.getElementById("lock-unlock-pass").value = "";
+        State.siteLocked = false;
+        App.applySettingsUI();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/siteLocked.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(false)
+          });
+          this.role = "admin";
+          await this.logAction("Kilit ekranından site açıldı.");
+          App.toast("Site kilidi açıldı.");
+        } catch (e) {}
+      },
+
+      async saveLockReason() {
+        if (this.role !== "admin") return;
+        const reason = (document.getElementById("adm-lock-reason-input")?.value || "").trim() || "Sistem yönetici tarafından geçici olarak kapatılmıştır.";
+        State.siteLockReason = reason;
+        App.applySettingsUI();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/siteLockReason.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reason)
+          });
+          App.toast("Kapatma mesajı kaydedildi.");
+        } catch (e) {}
+      },
+
+      async toggleBusinessLock() {
+        if (this.role !== "admin") return;
+        const nextVal = !State.businessLocked;
+        State.businessLocked = nextVal;
+        App.applySettingsUI();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/businessLocked.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(nextVal)
+          });
+          await this.logAction(nextVal ? "İşletme girişi donduruldu." : "İşletme girişi açıldı.");
+          App.toast(nextVal ? "İşletme girişi donduruldu." : "İşletme girişi açıldı.");
+        } catch (e) {}
+      },
+
+      async login() {
+        const pass = document.getElementById("admin-pass-input").value.trim();
+        if (!pass) {
+          App.toast("Lütfen şifrenizi girin.");
+          return;
+        }
+        const inputHash = await sha256Hex(pass);
+        let matchedRole = null;
+        if (inputHash === State.passHashes.admin) matchedRole = "admin";
+        else if (inputHash === State.passHashes.business) matchedRole = "business";
+        else if (inputHash === State.passHashes.courier) matchedRole = "courier";
+
+        if (!matchedRole) {
+          App.toast("Hatalı şifre.");
+          return;
+        }
+        if (this.selectedLoginRole && this.selectedLoginRole !== matchedRole) {
+          App.toast(`Bu şifre ${matchedRole === "admin" ? "Yönetici" : (matchedRole === "courier" ? "Kurye" : "İşletme")} girişine ait.`);
+          return;
+        }
+        if (matchedRole === "business" && State.businessLocked) {
+          App.toast("İşletme girişi yönetici tarafından dondurulmuştur.");
+          return;
+        }
+
+        this.role = matchedRole;
+        this.loggedIn = true;
+        document.getElementById("admin-pass-input").value = "";
+        document.getElementById("admin-login-panel").classList.add("hidden");
+        document.getElementById("admin-panel-content").classList.remove("hidden");
+
+        document.getElementById("adm-open-check").checked = State.ordersOpen;
+        document.getElementById("adm-price-check").checked = State.pricesVisible;
+        document.getElementById("adm-notice-input").value = State.announcement || "";
+        const lockReasonInp = document.getElementById("adm-lock-reason-input");
+        if (lockReasonInp) lockReasonInp.value = State.siteLockReason || "";
+
+        const payCfg = State.paymentConfig || DEFAULT_PAYMENT_CONFIG;
+        const cashChk = document.getElementById("adm-pay-cash");
+        const posChk = document.getElementById("adm-pay-pos");
+        const ibanChk = document.getElementById("adm-pay-iban");
+        const holderInp = document.getElementById("adm-iban-holder");
+        const numInp = document.getElementById("adm-iban-number");
+        if (cashChk) cashChk.checked = payCfg.cashEnabled !== false;
+        if (posChk) posChk.checked = Boolean(payCfg.posEnabled);
+        if (ibanChk) ibanChk.checked = Boolean(payCfg.ibanEnabled);
+        if (holderInp) holderInp.value = payCfg.ibanHolder || "";
+        if (numInp) numInp.value = payCfg.ibanNumber || "";
+
+        this.applyRoleUI();
+        App.applySettingsUI();
+        this.renderLocations();
+        this.renderProducts();
+        this.fetchOrders(true);
+
+        if (this.role !== "admin") {
+          this.logAction(`${this.role === "courier" ? "Kurye" : "İşletme"} paneline giriş yaptı.`);
+        }
+        if (this.timer) clearInterval(this.timer);
+        this.timer = setInterval(() => { if (this.loggedIn) this.fetchOrders(true); }, 2500);
+        App.toast(this.role === "admin" ? "Yönetici paneli açıldı." : (this.role === "courier" ? "Kurye ekranı açıldı." : "İşletme paneli açıldı."));
+      },
+
+      logout() {
+        this.loggedIn = false;
+        this.role = "admin";
+        if (this.timer) clearInterval(this.timer);
+        document.getElementById("admin-login-panel").classList.remove("hidden");
+        document.getElementById("admin-panel-content").classList.add("hidden");
+      },
+
+      async updateSetting(key, val) {
+        State[key] = val;
+        App.applySettingsUI();
+        ShopApp.renderMenu();
+        ShopApp.renderCart();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/${key}.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(val)
+          });
+          App.toast("Ayar güncellendi.");
+        } catch (e) {}
+      },
+
+      async saveNotice(broadcastAlert = false) {
+        const text = document.getElementById("adm-notice-input").value.trim() || "Siparişleriniz taze hazırlanıp seçtiğiniz yurt veya fakülte noktasına teslim edilir.";
+        const nowStr = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+        State.announcement = text;
+        State.announcementUpdatedAt = nowStr;
+        localStorage.setItem("sy_cache_announcement", text);
+        localStorage.setItem("sy_cache_announcement_time", nowStr);
+        App.applySettingsUI();
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/settings/announcement.json`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(text)
+            }),
+            fetch(`${FIREBASE_URL}/settings/announcementUpdatedAt.json`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(nowStr)
+            })
+          ]);
+          if (broadcastAlert) {
+            await NotificationApp.pushBroadcast(text);
+          }
+          await this.logAction(`Canlı duyuru yayınlandı: "${text}"`);
+          App.toast("Not / Duyuru sitedeki herkese yayınlandı.");
+        } catch (e) {}
+      },
+
+      async savePaymentSettings(showToast = false) {
+        const cashEnabled = Boolean(document.getElementById("adm-pay-cash")?.checked);
+        const posEnabled = Boolean(document.getElementById("adm-pay-pos")?.checked);
+        const ibanEnabled = Boolean(document.getElementById("adm-pay-iban")?.checked);
+        const ibanHolder = (document.getElementById("adm-iban-holder")?.value || "").trim();
+        const ibanNumber = (document.getElementById("adm-iban-number")?.value || "").trim();
+
+        const nextCfg = {
+          cashEnabled: (!cashEnabled && !posEnabled && !ibanEnabled) ? true : cashEnabled,
+          posEnabled,
+          ibanEnabled,
+          ibanHolder,
+          ibanNumber
+        };
+        if (!cashEnabled && !posEnabled && !ibanEnabled) {
+          const cashChk = document.getElementById("adm-pay-cash");
+          if (cashChk) cashChk.checked = true;
+        }
+        State.paymentConfig = nextCfg;
+        localStorage.setItem("sy_cache_payment", JSON.stringify(nextCfg));
+        ShopApp.renderPaymentOptions();
+        try {
+          await fetch(`${FIREBASE_URL}/settings/paymentConfig.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(nextCfg)
+          });
+          if (showToast) App.toast("Ödeme ayarları kaydedildi.");
+        } catch (e) {}
+      },
+
+      async savePasswords() {
+        if (this.role !== "admin") {
+          App.toast("Şifre değişikliği yalnızca yöneticiye açıktır.");
+          return;
+        }
+        const nextAdmin = (document.getElementById("adm-new-admin-pass")?.value || "").trim();
+        const nextBusiness = (document.getElementById("adm-new-business-pass")?.value || "").trim();
+        const nextCourier = (document.getElementById("adm-new-courier-pass")?.value || "").trim();
+
+        const updates = {};
+        if (nextAdmin) {
+          if (nextAdmin.length < 4) { App.toast("Yönetici şifresi en az 4 karakter olmalı."); return; }
+          const h = await sha256Hex(nextAdmin);
+          State.passHashes.admin = h;
+          updates.adminPassHash = h;
+        }
+        if (nextBusiness) {
+          if (nextBusiness.length < 4) { App.toast("İşletme şifresi en az 4 karakter olmalı."); return; }
+          const h = await sha256Hex(nextBusiness);
+          State.passHashes.business = h;
+          updates.businessPassHash = h;
+        }
+        if (nextCourier) {
+          if (nextCourier.length < 4) { App.toast("Kurye şifresi en az 4 karakter olmalı."); return; }
+          const h = await sha256Hex(nextCourier);
+          State.passHashes.courier = h;
+          updates.courierPassHash = h;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          App.toast("Güncellemek istediğiniz yeni şifreyi yazın.");
+          return;
+        }
+
+        try {
+          await Promise.all(
+            Object.entries(updates).map(([k, val]) =>
+              fetch(`${FIREBASE_URL}/settings/${k}.json`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(val)
+              })
+            )
+          );
+          document.getElementById("adm-new-admin-pass").value = "";
+          document.getElementById("adm-new-business-pass").value = "";
+          document.getElementById("adm-new-courier-pass").value = "";
+          await this.logAction("Panel giriş şifreleri güncellendi.");
+          App.toast("Yeni şifreler kaydedildi.");
+        } catch (e) {
+          App.toast("Şifreler kaydedilirken hata oluştu.");
+        }
+      },
+
+      renderLocations() {
+        const box = document.getElementById("admin-locations-list");
+        if (!box) return;
+        const locs = State.locations || [];
+        if (locs.length === 0) {
+          box.innerHTML = `<div class="col-span-full text-xs text-zinc-400">Tanımlı lokasyon yok.</div>`;
+          return;
+        }
+        box.innerHTML = locs.map((loc, idx) => `
+          <div class="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-between gap-2 text-xs">
+            <div class="min-w-0">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${loc.type === "Fakülte" ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-900"}">${App.esc(loc.type || "Yurt")}</span>
+              <div class="font-bold text-zinc-900 truncate mt-1">${App.esc(loc.name)}</div>
+            </div>
+            <button type="button" onclick="AdminApp.deleteLocation(${idx})" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold shrink-0">
+              Sil
+            </button>
+          </div>
+        `).join("");
+      },
+
+      async addLocation() {
+        if (!this.loggedIn || (this.role !== "admin" && this.role !== "business")) {
+          App.toast("Lokasyon ekleme yetkiniz yok.");
+          return;
+        }
+        const type = document.getElementById("new-loc-type")?.value || "Yurt";
+        const name = (document.getElementById("new-loc-name")?.value || "").trim();
+        if (!name) {
+          App.toast("Lütfen yurt veya fakülte adını yazın.");
+          return;
+        }
+        if ((State.locations || []).some(l => l.name.toLowerCase() === name.toLowerCase())) {
+          App.toast("Bu lokasyon zaten ekli.");
+          return;
+        }
+        State.locations.push({
+          id: "loc_" + Date.now(),
+          type,
+          name
+        });
+        localStorage.setItem("sy_cache_locations", JSON.stringify(State.locations));
+        try {
+          await fetch(`${FIREBASE_URL}/locations.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(State.locations)
+          });
+          document.getElementById("new-loc-name").value = "";
+          this.renderLocations();
+          ShopApp.renderLocations();
+          this.renderCourierView();
+          await this.logAction(`Yeni teslimat lokasyonu eklendi: ${name} (${type})`);
+          App.toast(`${name} teslimat noktalarına eklendi.`);
+        } catch (e) {}
+      },
+
+      async deleteLocation(idx) {
+        if (!this.loggedIn || (this.role !== "admin" && this.role !== "business")) return;
+        if (State.locations.length <= 1) {
+          App.toast("En az 1 teslimat lokasyonu kalmalıdır.");
+          return;
+        }
+        const removed = State.locations[idx];
+        State.locations.splice(idx, 1);
+        localStorage.setItem("sy_cache_locations", JSON.stringify(State.locations));
+        try {
+          await fetch(`${FIREBASE_URL}/locations.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(State.locations)
+          });
+          this.renderLocations();
+          ShopApp.renderLocations();
+          this.renderCourierView();
+          if (removed) await this.logAction(`Lokasyon kaldırıldı: ${removed.name}`);
+          App.toast("Lokasyon kaldırıldı.");
+        } catch (e) {}
+      },
+
+      async addProduct() {
+        const name = document.getElementById("new-prod-name").value.trim();
+        const price = Math.max(0, Number(document.getElementById("new-prod-price").value) || 0);
+        const discountPrice = Math.max(0, Number(document.getElementById("new-prod-discount").value) || 0);
+        const stock = Math.max(0, Number(document.getElementById("new-prod-stock").value) || 0);
+
+        if (!name || price <= 0) {
+          App.toast("Ürün adı ve geçerli fiyat girin.");
+          return;
+        }
+
+        State.products.push({
+          id: "mix_" + Date.now(),
+          restaurant: "Mixsos",
+          name,
+          desc: "Mixsos özel menü ürünü",
+          price,
+          discountPrice,
+          stock
+        });
+        localStorage.setItem("sy_cache_products", JSON.stringify(State.products));
+
+        try {
+          await fetch(`${FIREBASE_URL}/products.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(State.products)
+          });
+          document.getElementById("new-prod-name").value = "";
+          document.getElementById("new-prod-price").value = "";
+          document.getElementById("new-prod-discount").value = "";
+          this.renderProducts();
+          this.renderStats();
+          ShopApp.renderMenu();
+          App.toast("Yeni ürün eklendi.");
+        } catch (e) {}
+      },
+
+      renderProducts() {
+        const wrap = document.getElementById("admin-products-list");
+        wrap.innerHTML = State.products.map((p, idx) => `
+          <div class="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold text-zinc-900">${App.esc(p.name)}</span>
+              <button type="button" onclick="AdminApp.deleteProduct(${idx})" class="text-rose-600 font-bold">Sil</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] text-zinc-500">Fiyat (₺)</label>
+                <input id="ed-price-${idx}" type="number" value="${Number(p.price) || 0}" class="w-full bg-white border border-zinc-200 rounded-lg px-2 py-1 font-bold">
+              </div>
+              <div>
+                <label class="block text-[10px] text-zinc-500">İndirimli (₺)</label>
+                <input id="ed-disc-${idx}" type="number" value="${Number(p.discountPrice) || 0}" class="w-full bg-white border border-zinc-200 rounded-lg px-2 py-1 font-bold text-emerald-700">
+              </div>
+              <div>
+                <label class="block text-[10px] text-zinc-500">Stok</label>
+                <input id="ed-stock-${idx}" type="number" value="${Number(p.stock) || 0}" class="w-full bg-white border border-zinc-200 rounded-lg px-2 py-1 font-bold">
+              </div>
+            </div>
+          </div>
+        `).join("");
+      },
+
+      async deleteProduct(idx) {
+        State.products.splice(idx, 1);
+        localStorage.setItem("sy_cache_products", JSON.stringify(State.products));
+        try {
+          await fetch(`${FIREBASE_URL}/products.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(State.products)
+          });
+          this.renderProducts();
+          this.renderStats();
+          ShopApp.renderMenu();
+          ShopApp.renderCart();
+          App.toast("Ürün silindi.");
+        } catch (e) {}
+      },
+
+      async saveProducts() {
+        State.products = State.products.map((p, idx) => ({
+          ...p,
+          restaurant: "Mixsos",
+          price: Math.max(0, Number(document.getElementById(`ed-price-${idx}`).value) || 0),
+          discountPrice: Math.max(0, Number(document.getElementById(`ed-disc-${idx}`).value) || 0),
+          stock: Math.max(0, Number(document.getElementById(`ed-stock-${idx}`).value) || 0)
+        }));
+        localStorage.setItem("sy_cache_products", JSON.stringify(State.products));
+        try {
+          await fetch(`${FIREBASE_URL}/products.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(State.products)
+          });
+          this.renderStats();
+          ShopApp.renderMenu();
+          ShopApp.renderCart();
+          App.toast("Fiyat, indirim ve stoklar kaydedildi.");
+        } catch (e) {}
+      },
+
+      getActiveDataset() {
+        return this.role === "admin" ? State.ledgerOrders : State.orders;
+      },
+
+      renderStats() {
+        const dataset = this.getActiveDataset();
+        const totalMoney = dataset.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+        const totalQty = dataset.reduce((s, o) => s + (o.items || []).reduce((qs, it) => qs + (Number(it.qty) || 0), 0), 0);
+
+        document.getElementById("adm-stat-count").textContent = `${dataset.length} Sipariş`;
+        const totalItemsEl = document.getElementById("adm-stat-total-items");
+        if (totalItemsEl) totalItemsEl.textContent = `${totalQty} Adet`;
+        const totalBadgeEl = document.getElementById("adm-total-items-badge");
+        if (totalBadgeEl) totalBadgeEl.textContent = `Total: ${totalQty} Ürün`;
+        document.getElementById("adm-stat-money").textContent = `${totalMoney} ₺`;
+        document.getElementById("adm-stat-stock").textContent = State.products.reduce((s, p) => s + (Number(p.stock) || 0), 0);
+
+        const byItem = {};
+        State.products.forEach(p => {
+          if (p && p.name) byItem[p.name] = { qty: 0, revenue: 0 };
+        });
+        dataset.forEach(o => (o.items || []).forEach(it => {
+          if (!byItem[it.name]) byItem[it.name] = { qty: 0, revenue: 0 };
+          const q = Number(it.qty) || 0;
+          const up = Number(it.unitPrice) || 0;
+          byItem[it.name].qty += q;
+          byItem[it.name].revenue += q * up;
+        }));
+
+        const pillsWrap = document.getElementById("adm-product-breakdown-pills");
+        if (pillsWrap) {
+          pillsWrap.innerHTML = Object.entries(byItem).map(([name, info]) => `
+            <div class="p-3.5 rounded-2xl border ${info.qty > 0 ? "bg-amber-50/90 border-amber-300" : "bg-zinc-50 border-zinc-200"} flex flex-col justify-between gap-2">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-xs font-extrabold text-zinc-900 leading-snug">${App.esc(name)}</span>
+                <span class="px-2.5 py-1 rounded-xl ${info.qty > 0 ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-600"} text-xs font-extrabold shrink-0">${info.qty} Adet</span>
+              </div>
+              <div class="text-[11px] font-bold ${info.qty > 0 ? "text-emerald-700" : "text-zinc-400"}">
+                Toplam: ${info.revenue} ₺
+              </div>
+            </div>
+          `).join("");
+        }
+
+        const box = document.getElementById("adm-settlement-summary");
+        if (box) {
+          const itemLine = Object.entries(byItem)
+            .filter(([, info]) => info.qty > 0)
+            .map(([k, info]) => `${k}: ${info.qty} adet (${info.revenue} ₺)`)
+            .join(" • ") || "Henüz ürün satışı yok.";
+          box.innerHTML = `
+            <div class="font-extrabold text-zinc-900">Genel Total: ${dataset.length} Sipariş • ${totalQty} Ürün • ${totalMoney} ₺</div>
+            <div class="text-zinc-600">${App.esc(itemLine)}</div>
+          `;
+        }
+
+        const commRate = Math.max(0, Number(document.getElementById("adm-commission-rate")?.value) || 0);
+        const commAmount = ((totalMoney * commRate) / 100).toFixed(2).replace(/\.00$/, "");
+        const commEl = document.getElementById("adm-commission-amount");
+        if (commEl) commEl.textContent = `${commAmount} ₺ (%${commRate})`;
+
+        if (this.role === "admin") {
+          this.renderArchivesAndLogs();
+        }
+      },
+
+      renderArchivesAndLogs() {
+        const archBox = document.getElementById("owner-archives-list");
+        if (archBox) {
+          if (!State.archives || State.archives.length === 0) {
+            archBox.innerHTML = `<div class="col-span-full text-[11px] text-zinc-400 bg-zinc-50 border border-zinc-200 rounded-2xl p-3">Henüz arşivlenmiş gün sonu kaydı yok.</div>`;
+          } else {
+            archBox.innerHTML = State.archives.map(a => `
+              <div class="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-zinc-900">${App.esc(a.dateLabel || "")}</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-zinc-900 text-white font-extrabold">${a.totalMoney || 0} ₺</span>
+                </div>
+                <div class="text-[11px] font-bold text-zinc-700">${a.orderCount || 0} Sipariş • ${a.totalQty || 0} Ürün</div>
+                <div class="text-[11px] text-zinc-600">${App.esc(a.summaryLine || "")}</div>
+              </div>
+            `).join("");
+          }
+        }
+
+        const logsBox = document.getElementById("owner-audit-logs");
+        if (logsBox) {
+          if (!State.auditLogs || State.auditLogs.length === 0) {
+            logsBox.innerHTML = `<div class="text-zinc-400">Henüz hareket kaydı yok.</div>`;
+          } else {
+            logsBox.innerHTML = State.auditLogs.slice(0, 40).map(l => `
+              <div class="flex items-start justify-between gap-2 border-b border-zinc-200/60 pb-1 last:border-b-0">
+                <span><strong class="text-zinc-900">[${App.esc(l.actor)}]</strong> ${App.esc(l.action)}</span>
+                <span class="text-zinc-400 shrink-0 tabular-nums">${App.esc(l.at)}</span>
+              </div>
+            `).join("");
+          }
+        }
+      },
+
+      async archiveTodayAndReset() {
+        if (this.role !== "admin") return;
+        const dataset = State.ledgerOrders || [];
+        if (dataset.length === 0) {
+          App.toast("Arşivlenecek sipariş bulunmuyor.");
+          return;
+        }
+        const totalMoney = dataset.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+        const totalQty = dataset.reduce((s, o) => s + (o.items || []).reduce((qs, it) => qs + (Number(it.qty) || 0), 0), 0);
+        const byItem = {};
+        dataset.forEach(o => (o.items || []).forEach(it => {
+          byItem[it.name] = (byItem[it.name] || 0) + (Number(it.qty) || 0);
+        }));
+        const summaryLine = Object.entries(byItem).map(([k, v]) => `${k}: ${v} adet`).join(" • ");
+        const archiveId = "ARC-" + Date.now();
+        const archiveRecord = {
+          id: archiveId,
+          createdAt: Date.now(),
+          dateLabel: new Date().toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+          orderCount: dataset.length,
+          totalQty,
+          totalMoney,
+          summaryLine,
+          orders: dataset
+        };
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/daily_archives/${archiveId}.json`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(archiveRecord)
+            }),
+            fetch(`${FIREBASE_URL}/orders.json`, { method: "DELETE" }),
+            fetch(`${FIREBASE_URL}/order_ledger.json`, { method: "DELETE" })
+          ]);
+          await this.logAction(`Gün sonu arşivlendi (${dataset.length} sipariş / ${totalMoney} ₺).`);
+          this.knownIds.clear();
+          this.fetchOrders(true);
+          App.toast("Gün sonu arşive mühürlendi.");
+        } catch (e) {}
+      },
+
+      async copySettlement() {
+        const dataset = this.getActiveDataset();
+        const totalMoney = dataset.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+        const totalQty = dataset.reduce((s, o) => s + (o.items || []).reduce((qs, it) => qs + (Number(it.qty) || 0), 0), 0);
+        const byItem = {};
+        dataset.forEach(o => (o.items || []).forEach(it => {
+          byItem[it.name] = (byItem[it.name] || 0) + (Number(it.qty) || 0);
+        }));
+        const lines = [
+          `Mixsos Gün Sonu Özeti`,
+          `Toplam Sipariş: ${dataset.length} | Toplam Ürün: ${totalQty} | Toplam Tutar: ${totalMoney} ₺`,
+          ...Object.entries(byItem).map(([k, v]) => `- ${k}: ${v} adet`)
+        ];
+        try {
+          await navigator.clipboard.writeText(lines.join("\n"));
+          App.toast("Özet kopyalandı.");
+        } catch (e) {}
+      },
+
+      exportCsv() {
+        const dataset = this.getActiveDataset();
+        if (!dataset || dataset.length === 0) {
+          App.toast("Dışa aktarılacak sipariş yok.");
+          return;
+        }
+        const headers = ["Siparis Kodu", "Saat", "Lokasyon", "Ad Soyad", "Telefon", "Odeme", "Tutar (TL)", "Durum", "Urunler", "Not"];
+        const rows = dataset.map(o => [
+          o.id || "",
+          o.time || "",
+          o.dorm || "",
+          o.customerName || "",
+          o.phone || "",
+          o.payment || "",
+          o.totalPrice ?? 0,
+          o.status || "",
+          (o.items || []).map(x => `${x.qty}x ${x.name}`).join(" / "),
+          o.note || ""
+        ]);
+        const csv = "\uFEFF" + [headers, ...rows]
+          .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";"))
+          .join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mixsos_siparisler_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        App.toast("CSV dosyası indirildi.");
+      },
+
+      async fetchOrders(silent = false) {
+        try {
+          const requests = [
+            fetch(`${FIREBASE_URL}/orders.json`),
+            fetch(`${FIREBASE_URL}/order_ledger.json`)
+          ];
+          if (this.role === "admin") {
+            requests.push(fetch(`${FIREBASE_URL}/daily_archives.json`));
+            requests.push(fetch(`${FIREBASE_URL}/audit_logs.json`));
+          }
+          const responses = await Promise.all(requests);
+          const rawOrders = responses[0].ok ? await responses[0].json() : null;
+          const rawLedger = responses[1].ok ? await responses[1].json() : null;
+          if (this.role === "admin") {
+            const rawArchives = responses[2]?.ok ? await responses[2].json() : null;
+            const rawLogs = responses[3]?.ok ? await responses[3].json() : null;
+            State.archives = rawArchives ? Object.values(rawArchives).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
+            State.auditLogs = rawLogs ? Object.values(rawLogs).sort((a, b) => (b.ts || 0) - (a.ts || 0)) : [];
+          }
+
+          const activeList = rawOrders ? Object.values(rawOrders).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) : [];
+          const ledgerMap = rawLedger && typeof rawLedger === "object" ? { ...rawLedger } : {};
+
+          activeList.forEach(o => {
+            if (o && o.id && !ledgerMap[o.id]) {
+              ledgerMap[o.id] = { ...o, deletedByBusiness: false, deletedAt: null };
+            }
+          });
+          const ledgerList = Object.values(ledgerMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+          const checkList = this.role === "admin" ? ledgerList : activeList;
+          let newOrder = false;
+          if (this.knownIds.size > 0) {
+            checkList.forEach(o => { if (o && o.id && !this.knownIds.has(o.id)) newOrder = true; });
+          }
+          checkList.forEach(o => { if (o && o.id) this.knownIds.add(o.id); });
+
+          State.orders = activeList;
+          State.ledgerOrders = ledgerList;
+          document.getElementById("admin-order-count").textContent = checkList.length;
+          this.renderStats();
+          this.renderOrders();
+          this.renderCourierView();
+
+          if (newOrder) {
+            this.beep();
+            if (!silent) App.toast("Yeni sipariş geldi!");
+          }
+        } catch (e) {}
+      },
+
+      async notifyAllOnTheWay() {
+        const targets = (State.orders || []).filter(o =>
+          o &&
+          o.status !== "Teslim edildi" &&
+          o.status !== "İptal edildi"
+        );
+        const authQuery = await AuthApp.authQuery();
+        try {
+          await Promise.all(targets.flatMap(o => {
+            const ops = [
+              fetch(`${FIREBASE_URL}/orders/${o.id}/status.json${authQuery}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify("Kurye yolda")
+              }),
+              fetch(`${FIREBASE_URL}/order_ledger/${o.id}/status.json${authQuery}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify("Kurye yolda")
+              })
+            ];
+            if (o.ownerUid) {
+              ops.push(
+                fetch(`${FIREBASE_URL}/user_orders/${o.ownerUid}/${o.id}/status.json${authQuery}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify("Kurye yolda")
+                }),
+                NotificationApp.createOnce({
+                  targetUid: o.ownerUid,
+                  orderId: o.id,
+                  status: "Kurye yolda",
+                  dorm: o.dorm || ""
+                })
+              );
+            }
+            return ops;
+          }));
+          await this.logAction(`Kurye yola çıktı: ${targets.length} siparişe bildirim gönderildi.`);
+          this.fetchOrders(true);
+          App.toast(`${targets.length} siparişe "Kurye yolda" bildirimi gönderildi.`);
+        } catch (e) {}
+      },
+
+      async bulkNotifyDorm(dormName) {
+        const targets = (State.orders || []).filter(o =>
+          o &&
+          o.dorm === dormName &&
+          o.status !== "Teslim edildi" &&
+          o.status !== "İptal edildi"
+        );
+        const shortDorm = dormName.replace(/^\d+\.\s*Durak:\s*/, "");
+        const authQuery = await AuthApp.authQuery();
+        try {
+          await Promise.all(targets.flatMap(o => {
+            const ops = [
+              fetch(`${FIREBASE_URL}/orders/${o.id}/status.json${authQuery}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify("Yurt kapısında")
+              }),
+              fetch(`${FIREBASE_URL}/order_ledger/${o.id}/status.json${authQuery}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify("Yurt kapısında")
+              })
+            ];
+            if (o.ownerUid) {
+              ops.push(
+                fetch(`${FIREBASE_URL}/user_orders/${o.ownerUid}/${o.id}/status.json${authQuery}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify("Yurt kapısında")
+                }),
+                NotificationApp.createOnce({
+                  targetUid: o.ownerUid,
+                  orderId: o.id,
+                  status: "Yurt kapısında",
+                  dorm: shortDorm
+                })
+              );
+            }
+            return ops;
+          }));
+          await this.logAction(`Kurye "${shortDorm}" noktasına ulaştı (${targets.length} sipariş).`);
+          this.fetchOrders(true);
+          App.toast(`${shortDorm}: ${targets.length} müşteriye "Kapıdayım" bildirimi gitti.`);
+        } catch (e) {}
+      },
+
+      renderCourierView() {
+        const listBox = document.getElementById("courier-orders-list");
+        if (!listBox) return;
+        const orders = State.orders || [];
+        const dormFilter = document.getElementById("cur-dorm-filter")?.value || "ALL";
+        const hideDelivered = Boolean(document.getElementById("cur-hide-delivered")?.checked);
+        const rawSearch = (document.getElementById("cur-search")?.value || "").trim().toLowerCase();
+        const searchDigits = rawSearch.replace(/\D/g, "");
+
+        const remainingList = orders.filter(o => o && o.status !== "Teslim edildi" && o.status !== "İptal edildi");
+        const deliveredList = orders.filter(o => o && o.status === "Teslim edildi");
+        const cashToCollect = remainingList
+          .filter(o => String(o.payment || "").toLowerCase().includes("kapıda ödeme") || String(o.payment || "").toLowerCase().includes("nakit"))
+          .reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+        const otherToCollect = remainingList
+          .filter(o => !String(o.payment || "").toLowerCase().includes("kapıda ödeme") && !String(o.payment || "").toLowerCase().includes("nakit"))
+          .reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+
+        const remEl = document.getElementById("cur-stat-remaining");
+        const delEl = document.getElementById("cur-stat-delivered");
+        const cashEl = document.getElementById("cur-stat-cash");
+        const othEl = document.getElementById("cur-stat-other");
+        if (remEl) remEl.textContent = `${remainingList.length} Paket`;
+        if (delEl) delEl.textContent = `${deliveredList.length} Paket`;
+        if (cashEl) cashEl.textContent = `${cashToCollect} ₺`;
+        if (othEl) othEl.textContent = `${otherToCollect} ₺`;
+
+        const routeList = (State.locations || DEFAULT_LOCATIONS).map(l => l.name);
+        const dormPillsBox = document.getElementById("cur-dorm-pills");
+        if (dormPillsBox) {
+          dormPillsBox.innerHTML = routeList.map(dorm => {
+            const pendingCount = remainingList.filter(o => o.dorm === dorm).length;
+            const shortName = dorm.replace(/^\d+\.\s*Durak:\s*/, "");
+            return `
+              <div class="rounded-2xl p-2.5 bg-sky-900/60 border border-sky-800 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="text-[11px] font-extrabold text-white truncate">${App.esc(shortName)}</div>
+                  <div class="text-[10px] font-bold ${pendingCount > 0 ? "text-amber-300" : "text-sky-400"}">${pendingCount} bekleyen paket</div>
+                </div>
+                <button type="button" onclick="AdminApp.bulkNotifyDorm('${App.esc(dorm)}')" ${pendingCount === 0 ? "disabled" : ""}
+                  class="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-35 text-zinc-950 text-[10px] font-extrabold shrink-0">
+                  Kapıdayım
+                </button>
+              </div>
+            `;
+          }).join("");
+        }
+
+        const routeRank = d => {
+          const idx = routeList.indexOf(d);
+          return idx === -1 ? 99 : idx;
+        };
+
+        const filtered = orders
+          .filter(o => {
+            if (!o) return false;
+            if (dormFilter !== "ALL" && o.dorm !== dormFilter) return false;
+            if (hideDelivered && o.status === "Teslim edildi") return false;
+            if (!rawSearch) return true;
+            const phoneDigits = String(o.phone || "").replace(/\D/g, "");
+            const nameLower = String(o.customerName || "").toLowerCase();
+            return (searchDigits && phoneDigits.includes(searchDigits)) || nameLower.includes(rawSearch);
+          })
+          .sort((a, b) => {
+            const aDone = a.status === "Teslim edildi" ? 1 : 0;
+            const bDone = b.status === "Teslim edildi" ? 1 : 0;
+            if (aDone !== bDone) return aDone - bDone;
+            const rDiff = routeRank(a.dorm) - routeRank(b.dorm);
+            if (rDiff !== 0) return rDiff;
+            return (a.createdAt || 0) - (b.createdAt || 0);
+          });
+
+        if (filtered.length === 0) {
+          listBox.innerHTML = `<div class="soft-card rounded-3xl p-6 text-center text-xs text-zinc-400">Gösterilecek kurye paketi bulunmuyor.</div>`;
+          return;
+        }
+
+        listBox.innerHTML = filtered.map(o => {
+          const isDelivered = o.status === "Teslim edildi";
+          const redStrike = isDelivered ? "line-through decoration-rose-600 decoration-2" : "";
+          const tel = String(o.phone || "").replace(/\D/g, "");
+          const waTel = tel.startsWith("0") ? "9" + tel : tel;
+          const waMsg = encodeURIComponent(`Merhaba ${o.customerName || ""}, Mixsos kuryeniz ${o.dorm} noktasına geldi. Sipariş kodunuz: #${o.id}`);
+          const itemsLine = (o.items || []).map(x => `${x.qty}x ${x.name}`).join(" • ");
+
+          return `
+            <div class="soft-card rounded-3xl p-4 sm:p-5 border-2 ${isDelivered ? "border-rose-300 bg-rose-50/40" : "border-zinc-200"} space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="px-3 py-1 rounded-xl bg-zinc-900 text-white text-xs font-extrabold ${redStrike}">${App.esc(o.dorm)}</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-bold text-zinc-500 ${redStrike}">${App.esc(o.time || "")} • #${App.esc(o.id)}</span>
+                  ${isDelivered ? `<span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[11px] font-extrabold">✓ Teslim Edildi</span>` : ""}
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div class="font-extrabold text-base text-zinc-900 ${redStrike}">${App.esc(o.customerName)}</div>
+                  <div class="text-xs font-bold text-zinc-600 mt-0.5 ${redStrike}">Not / Blok: <span class="text-zinc-900">${App.esc(o.note || "-")}</span></div>
+                </div>
+                <div class="text-right">
+                  <div class="px-3 py-1 rounded-xl bg-amber-100 text-amber-950 border border-amber-300 text-xs font-extrabold ${redStrike}">
+                    ${App.esc(o.payment || "")} • ${o.totalPrice || 0} ₺
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-zinc-100 text-xs font-extrabold text-zinc-900 ${redStrike}">
+                Paket İçeriği: ${App.esc(itemsLine)}
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                <a href="tel:${tel}" class="py-2.5 px-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold text-center">
+                  Ara
+                </a>
+                <a href="https://wa.me/${waTel}?text=${waMsg}" target="_blank" rel="noopener" class="py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold text-center">
+                  WhatsApp
+                </a>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Kurye yolda')" class="py-2.5 px-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-extrabold">
+                  Yola Çıktım
+                </button>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Yurt kapısında')" class="py-2.5 px-3 rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-extrabold">
+                  Kapıdayım
+                </button>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Teslim edildi')" class="col-span-2 sm:col-span-1 py-2.5 px-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">
+                  Teslim Ettim
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+
+      renderOrders() {
+        const box = document.getElementById("admin-orders-list");
+        const dataset = this.getActiveDataset();
+        const dormFilter = document.getElementById("adm-order-dorm-filter")?.value || "ALL";
+        const rawSearch = (document.getElementById("adm-order-phone-search")?.value || "").trim();
+        const searchDigits = rawSearch.replace(/\D/g, "");
+        const searchText = rawSearch.toLowerCase();
+
+        const filtered = (dataset || []).filter(o => {
+          if (!o) return false;
+          const dormOk = dormFilter === "ALL" || (o.dorm || "") === dormFilter;
+          if (!dormOk) return false;
+          if (!rawSearch) return true;
+          const phoneDigits = String(o.phone || "").replace(/\D/g, "");
+          const nameLower = String(o.customerName || "").toLowerCase();
+          const idLower = String(o.id || "").toLowerCase();
+          const digitMatch = searchDigits.length > 0 && phoneDigits.includes(searchDigits);
+          const textMatch = nameLower.includes(searchText) || idLower.includes(searchText);
+          return digitMatch || textMatch;
+        });
+
+        if (filtered.length === 0) {
+          box.innerHTML = `<div class="text-center py-6 text-xs text-zinc-400">${dataset.length === 0 ? "Henüz sipariş yok." : "Filtreye uygun sipariş bulunamadı."}</div>`;
+          return;
+        }
+        box.innerHTML = filtered.map(o => {
+          const isDelivered = o.status === "Teslim edildi";
+          const redStrike = isDelivered ? "line-through decoration-rose-600 decoration-2" : "";
+          const itemsBadges = (o.items || []).map(x => `
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg ${isDelivered ? "bg-zinc-700 text-zinc-200 line-through decoration-rose-500 decoration-2" : "bg-zinc-900 text-white"} text-xs font-extrabold">
+              <span>${x.qty}x</span>
+              <span>${App.esc(x.name)}</span>
+            </span>
+          `).join(" ");
+          const tel = String(o.phone || "").replace(/\D/g, "");
+          const deliveredFlag = isDelivered
+            ? `<span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-[11px] font-extrabold">✓ Teslim Edildi</span>`
+            : "";
+          const deleteBtnHtml = this.role === "admin"
+            ? `<button type="button" onclick="AdminApp.deleteOrder('${o.id}')" class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 font-bold">Sil</button>`
+            : ``;
+          return `
+            <div class="p-4 rounded-2xl ${isDelivered ? "bg-rose-50/40 border-rose-300" : "bg-zinc-50 border-zinc-200"} border space-y-2.5 text-xs">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-extrabold text-zinc-900 ${redStrike}">#${App.esc(o.id)}</span>
+                  <span class="text-zinc-500 ${redStrike}">${App.esc(o.time || "")}</span>
+                  ${deliveredFlag}
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold ${redStrike}">${App.esc(o.dorm)}</span>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 font-bold text-sm text-zinc-900">
+                <span class="${redStrike}">${App.esc(o.customerName)}</span>
+                <a href="tel:${tel}" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-900 text-xs font-extrabold underline ${redStrike}">
+                  <span>Ara: ${App.esc(o.phone)}</span>
+                </a>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">${itemsBadges}</div>
+              <div class="text-zinc-500 ${redStrike}">
+                Ödeme: <strong class="text-zinc-800">${App.esc(o.payment || "")}</strong> • Tutar: <strong class="text-emerald-700">${o.totalPrice || 0} ₺</strong> • Not: ${App.esc(o.note)}
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                <span class="text-[11px] font-bold text-zinc-600 mr-1">Durum: <span class="${isDelivered ? "text-rose-700 font-extrabold" : "text-zinc-900"}">${App.esc(o.status)}</span></span>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Hazırlanıyor')" class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold">Hazırlanıyor</button>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Kurye yolda')" class="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-900 font-bold">Kurye yolda</button>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Yurt kapısında')" class="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 font-bold">Kapıda</button>
+                <button type="button" onclick="AdminApp.setStatus('${o.id}', 'Teslim edildi')" class="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold">Teslim edildi</button>
+
+                ${deleteBtnHtml}
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+
+      async setStatus(id, status) {
+        if (!this.loggedIn || !["admin", "business", "courier"].includes(this.role)) {
+          App.toast("Durum değiştirme yetkiniz yok.");
+          return;
+        }
+        const authQuery = await AuthApp.authQuery();
+        const existing = (State.orders || []).find(x => x && x.id === id) || (State.ledgerOrders || []).find(x => x && x.id === id);
+        try {
+          const ops = [
+            fetch(`${FIREBASE_URL}/orders/${id}/status.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(status)
+            }),
+            fetch(`${FIREBASE_URL}/order_ledger/${id}/status.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(status)
+            })
+          ];
+          if (existing && existing.ownerUid) {
+            ops.push(
+              fetch(`${FIREBASE_URL}/user_orders/${existing.ownerUid}/${id}/status.json${authQuery}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(status)
+              }),
+              NotificationApp.createOnce({
+                targetUid: existing.ownerUid,
+                orderId: id,
+                status,
+                dorm: existing.dorm || ""
+              })
+            );
+          }
+          await Promise.all(ops);
+          await this.logAction(`#${id} siparişinin durumu "${status}" yapıldı.`);
+          this.fetchOrders(true);
+          App.toast("Sipariş durumu güncellendi.");
+        } catch (e) {}
+      },
+
+      async deleteOrder(id) {
+        if (this.role !== "admin") {
+          App.toast("Yalnızca yönetici kayıt silebilir.");
+          return;
+        }
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/orders/${id}.json`, { method: "DELETE" }),
+            fetch(`${FIREBASE_URL}/order_ledger/${id}.json`, { method: "DELETE" })
+          ]);
+          await this.logAction(`#${id} siparişi silindi.`);
+          this.knownIds.delete(id);
+          this.fetchOrders(true);
+          App.toast("Sipariş kaydı silindi.");
+        } catch (e) {}
+      },
+
+      async clearOrders() {
+        if (this.role !== "admin") return;
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/orders.json`, { method: "DELETE" }),
+            fetch(`${FIREBASE_URL}/order_ledger.json`, { method: "DELETE" })
+          ]);
+          await this.logAction("Tüm sipariş listesi temizlendi.");
+          this.knownIds.clear();
+          this.fetchOrders(true);
+          App.toast("Tüm siparişler temizlendi.");
+        } catch (e) {}
+      }
+    };
+
+    const AuthApp = {
+      async init() {
+        try {
+          if (typeof firebase !== "undefined") {
+            if (!firebase.apps.length) {
+              firebase.initializeApp(FIREBASE_CONFIG);
+            }
+            const auth = firebase.auth();
+            let user = auth.currentUser;
+            if (!user) {
+              const cred = await auth.signInAnonymously();
+              user = cred.user;
+            }
+            if (user) {
+              State.uid = user.uid;
+              State.idToken = await user.getIdToken();
+              return user.uid;
+            }
+          }
+        } catch (e) {}
+
+        let localUid = localStorage.getItem("sy_verified_uid");
+        if (!localUid) {
+          localUid = "u_" + crypto.getRandomValues(new Uint32Array(3)).join("");
+          localStorage.setItem("sy_verified_uid", localUid);
+        }
+        State.uid = localUid;
+        return localUid;
+      },
+
+      async ensureUid() {
+        if (State.uid) {
+          try {
+            if (typeof firebase !== "undefined" && firebase.auth().currentUser) {
+              State.idToken = await firebase.auth().currentUser.getIdToken();
+            }
+          } catch (e) {}
+          return State.uid;
+        }
+        return await this.init();
+      },
+
+      async authQuery() {
+        await this.ensureUid();
+        return State.idToken ? `?auth=${encodeURIComponent(State.idToken)}` : "";
+      }
+    };
+
+    const NotificationApp = {
+      panelOpen: false,
+      knownNotifKeys: new Set(),
+
+      buildDedupeKey(orderId, status) {
+        const cleanOrder = String(orderId || "").replace(/[^A-Za-z0-9_-]/g, "");
+        const slugMap = {
+          "Sipariş alındı": "S01_ALINDI",
+          "Hazırlanıyor": "S02_HAZIRLANIYOR",
+          "Kuryeye verildi": "S03_KURYEYE_VERILDI",
+          "Kurye yolda": "S04_YOLA_CIKTI",
+          "Yurt kapısında": "S05_KAPIDA",
+          "Teslim edildi": "S06_TESLIM_EDILDI",
+          "İptal edildi": "S07_IPTAL_EDILDI"
+        };
+        const slug = slugMap[status] || String(status || "").replace(/[^A-Za-z0-9_]/g, "_");
+        return `${cleanOrder}__${slug}`;
+      },
+
+      async pushBroadcast(messageText) {
+        const id = "ANN_" + Date.now();
+        const now = Date.now();
+        const payload = {
+          id,
+          isBroadcast: true,
+          orderId: "DUYURU",
+          status: "Duyuru",
+          title: "Mixsos Duyuru / Not",
+          description: messageText,
+          time: new Date(now).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+          createdAt: now,
+          expiresAt: now + NOTIFICATION_TTL_MS
+        };
+        try {
+          await fetch(`${FIREBASE_URL}/broadcast_notifications/${id}.json`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        } catch (e) {}
+      },
+
+      async createOnce({ targetUid, orderId, status, dorm, createdAt }) {
+        if (!targetUid || !orderId || !STATUS_NOTIFICATION_MAP[status]) return null;
+        const dedupeKey = this.buildDedupeKey(orderId, status);
+        const authQuery = await AuthApp.authQuery();
+        const url = `${FIREBASE_URL}/user_notifications/${targetUid}/${dedupeKey}.json${authQuery}`;
+
+        try {
+          const checkRes = await fetch(url);
+          if (checkRes.ok) {
+            const existing = await checkRes.json();
+            if (existing && existing.id === dedupeKey) {
+              return existing;
+            }
+          }
+
+          const now = Date.now();
+          const meta = STATUS_NOTIFICATION_MAP[status];
+          const shortDorm = String(dorm || "").replace(/^\d+\.\s*Durak:\s*/, "");
+          const payload = {
+            id: dedupeKey,
+            ownerUid: targetUid,
+            orderId,
+            status,
+            title: meta.title,
+            description: shortDorm ? `${shortDorm} • ${meta.desc}` : meta.desc,
+            time: new Date(now).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+            createdAt: createdAt || now,
+            expiresAt: (createdAt || now) + NOTIFICATION_TTL_MS,
+            read: false,
+            readAt: null
+          };
+
+          await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          return payload;
+        } catch (e) {
+          return null;
+        }
+      },
+
+      async sync() {
+        const uid = await AuthApp.ensureUid();
+        if (!uid) return;
+        const authQuery = await AuthApp.authQuery();
+        try {
+          const [notifRes, myOrdersRes, broadRes] = await Promise.all([
+            fetch(`${FIREBASE_URL}/user_notifications/${uid}.json${authQuery}`),
+            fetch(`${FIREBASE_URL}/user_orders/${uid}.json${authQuery}`),
+            fetch(`${FIREBASE_URL}/broadcast_notifications.json`)
+          ]);
+
+          const now = Date.now();
+          let validNotifs = [];
+          const readBroadcasts = safeLoadJSON("sy_read_broadcasts", []) || [];
+
+          if (notifRes.ok) {
+            const rawMap = await notifRes.json();
+            if (rawMap && typeof rawMap === "object") {
+              Object.entries(rawMap).forEach(([key, item]) => {
+                if (!item || typeof item !== "object") return;
+                if (item.ownerUid && item.ownerUid !== uid) return;
+                const exp = Number(item.expiresAt) || ((Number(item.createdAt) || 0) + NOTIFICATION_TTL_MS);
+                if (now >= exp) {
+                  fetch(`${FIREBASE_URL}/user_notifications/${uid}/${key}.json${authQuery}`, { method: "DELETE" }).catch(() => {});
+                } else {
+                  validNotifs.push({ ...item, id: key });
+                }
+              });
+            }
+          }
+
+          if (broadRes.ok) {
+            const bMap = await broadRes.json();
+            if (bMap && typeof bMap === "object") {
+              Object.entries(bMap).forEach(([key, item]) => {
+                if (!item || typeof item !== "object") return;
+                const exp = Number(item.expiresAt) || ((Number(item.createdAt) || 0) + NOTIFICATION_TTL_MS);
+                if (now < exp) {
+                  validNotifs.push({
+                    ...item,
+                    id: key,
+                    isBroadcast: true,
+                    read: readBroadcasts.includes(key)
+                  });
+                }
+              });
+            }
+          }
+
+          validNotifs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+          let hasBrandNewUnread = false;
+          validNotifs.forEach(n => {
+            if (!this.knownNotifKeys.has(n.id)) {
+              if (this.knownNotifKeys.size > 0 && !n.read) {
+                hasBrandNewUnread = true;
+              }
+              this.knownNotifKeys.add(n.id);
+            }
+          });
+
+          State.notifications = validNotifs;
+          localStorage.setItem("sy_cache_notifications", JSON.stringify(validNotifs));
+          this.render();
+
+          if (hasBrandNewUnread) {
+            AdminApp.beep();
+            const newest = validNotifs.find(n => !n.read);
+            if (newest) {
+              const toastMsg = newest.isBroadcast ? `Duyuru: ${newest.description}` : `${newest.title} (#${newest.orderId})`;
+              App.toast(toastMsg);
+              PwaApp.sendSystemNotification(
+                newest.isBroadcast ? "Mixsos Duyuru" : `${newest.title} (#${newest.orderId})`,
+                newest.description || toastMsg
+              );
+            }
+          }
+
+          if (myOrdersRes.ok) {
+            const rawOrders = await myOrdersRes.json();
+            if (rawOrders && typeof rawOrders === "object") {
+              const cloudOrders = Object.values(rawOrders).filter(o => o && o.ownerUid === uid);
+              const mergedMap = {};
+              (State.myOrders || []).forEach(o => { if (o && o.id) mergedMap[o.id] = o; });
+              cloudOrders.forEach(o => { if (o && o.id) mergedMap[o.id] = o; });
+              State.myOrders = Object.values(mergedMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              localStorage.setItem("sy_cache_my_orders", JSON.stringify(State.myOrders));
+            }
+            this.renderMyOrders();
+          }
+        } catch (e) {}
+      },
+
+      render() {
+        const unreadCount = (State.notifications || []).filter(n => !n.read).length;
+        const badge = document.getElementById("notif-unread-badge");
+        if (badge) {
+          badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+          badge.classList.toggle("hidden", unreadCount === 0);
+        }
+
+        const container = document.getElementById("notif-list-container");
+        if (!container) return;
+
+        if (!State.notifications || State.notifications.length === 0) {
+          container.innerHTML = `<div class="p-6 text-center text-xs text-zinc-400">Henüz bildiriminiz yok.</div>`;
+          return;
+        }
+
+        container.innerHTML = State.notifications.map(n => {
+          const isCancel = n.status === "İptal edildi";
+          const isDelivered = n.status === "Teslim edildi";
+          const pillClass = n.isBroadcast
+            ? "bg-sky-100 text-sky-800"
+            : isCancel
+              ? "bg-rose-100 text-rose-800"
+              : isDelivered
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-amber-100 text-amber-900";
+          return `
+            <button type="button" onclick="NotificationApp.openNotification('${App.esc(n.id)}', '${App.esc(n.orderId)}', ${Boolean(n.isBroadcast)})"
+              class="w-full text-left px-4 py-3 transition flex items-start gap-3 ${n.read ? "bg-white hover:bg-zinc-50" : "bg-amber-50/70 hover:bg-amber-50"}">
+              <span class="mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.read ? "bg-zinc-300" : "bg-[#d62828]"}"></span>
+              <div class="flex-1 min-w-0 space-y-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-extrabold text-xs text-zinc-900 truncate">${App.esc(n.title)}</span>
+                  <span class="text-[10px] font-bold text-zinc-400 shrink-0 tabular-nums">${App.esc(n.time || "")}</span>
+                </div>
+                <p class="text-[11px] text-zinc-600 leading-snug">${App.esc(n.description || "")}</p>
+                <div class="flex items-center justify-between pt-0.5">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${pillClass}">${n.isBroadcast ? "Duyuru" : "#" + App.esc(n.orderId)}</span>
+                  <span class="text-[10px] font-semibold ${n.read ? "text-zinc-400" : "text-amber-800"}">${n.read ? "Okundu" : (n.isBroadcast ? "Kapat" : "Takibe git →")}</span>
+                </div>
+              </div>
+            </button>
+          `;
+        }).join("");
+      },
+
+      renderMyOrders() {
+        const box = document.getElementById("my-auth-orders-list");
+        if (!box) return;
+        if (!State.myOrders || State.myOrders.length === 0) {
+          box.innerHTML = `<div class="text-xs text-zinc-400 bg-zinc-50 border border-zinc-200 rounded-2xl p-3 text-center">Henüz verilmiş siparişiniz bulunmuyor.</div>`;
+          return;
+        }
+        box.innerHTML = State.myOrders.map(o => `
+          <div class="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-between gap-2 text-xs">
+            <div class="min-w-0">
+              <div class="font-extrabold text-zinc-900">#${App.esc(o.id)} • ${App.esc(o.status)}</div>
+              <div class="text-[11px] text-zinc-500 truncate">${App.esc(o.dorm)} • ${o.totalPrice || 0} ₺</div>
+            </div>
+            <button type="button" onclick="document.getElementById('track-input').value='${App.esc(o.id)}'; TrackApp.lookup();"
+              class="px-3 py-1.5 rounded-xl bg-zinc-900 text-white text-[11px] font-bold shrink-0">
+              Takip Et
+            </button>
+          </div>
+        `).join("");
+      },
+
+      togglePanel() {
+        this.panelOpen = !this.panelOpen;
+        const pop = document.getElementById("notif-popover");
+        if (pop) pop.classList.toggle("hidden", !this.panelOpen);
+        if (this.panelOpen) {
+          this.markAllRead();
+        }
+      },
+
+      closePanel() {
+        this.panelOpen = false;
+        const pop = document.getElementById("notif-popover");
+        if (pop) pop.classList.add("hidden");
+      },
+
+      async markRead(notifId) {
+        const target = State.notifications.find(n => n.id === notifId);
+        if (!target || target.read) return;
+        target.read = true;
+        target.readAt = Date.now();
+        localStorage.setItem("sy_cache_notifications", JSON.stringify(State.notifications));
+        this.render();
+
+        if (target.isBroadcast) {
+          const readBroadcasts = safeLoadJSON("sy_read_broadcasts", []) || [];
+          if (!readBroadcasts.includes(notifId)) {
+            readBroadcasts.push(notifId);
+            localStorage.setItem("sy_read_broadcasts", JSON.stringify(readBroadcasts));
+          }
+          return;
+        }
+
+        const uid = await AuthApp.ensureUid();
+        if (!uid) return;
+        const authQuery = await AuthApp.authQuery();
+        try {
+          await Promise.all([
+            fetch(`${FIREBASE_URL}/user_notifications/${uid}/${notifId}/read.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(true)
+            }),
+            fetch(`${FIREBASE_URL}/user_notifications/${uid}/${notifId}/readAt.json${authQuery}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(target.readAt)
+            })
+          ]);
+        } catch (e) {}
+      },
+
+      async markAllRead() {
+        const unread = (State.notifications || []).filter(n => !n.read);
+        if (unread.length === 0) return;
+        await Promise.all(unread.map(n => this.markRead(n.id)));
+      },
+
+      async openNotification(notifId, orderId, isBroadcast) {
+        await this.markRead(notifId);
+        this.closePanel();
+        if (!isBroadcast && orderId && orderId !== "DUYURU") {
+          App.setTab("track");
+          const inp = document.getElementById("track-input");
+          if (inp) inp.value = orderId;
+          await TrackApp.lookup();
+        }
+      }
+    };
+
+    const PwaApp = {
+      deferredPrompt: null,
+      swRegistration: null,
+
+      init() {
+        this.setupManifestAndIcon();
+        this.registerServiceWorker();
+        this.updateNotifButtonUI();
+
+        window.addEventListener("beforeinstallprompt", (e) => {
+          e.preventDefault();
+          this.deferredPrompt = e;
+          const btn = document.getElementById("btn-install-pwa");
+          if (btn) btn.classList.remove("hidden");
+        });
+
+        window.addEventListener("appinstalled", () => {
+          this.deferredPrompt = null;
+          const btn = document.getElementById("btn-install-pwa");
+          if (btn) btn.classList.add("hidden");
+          App.toast("Siparişim Yurtta! ana ekranınıza eklendi.");
+        });
+
+        if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
+          const btn = document.getElementById("btn-install-pwa");
+          if (btn) btn.classList.add("hidden");
+        }
+      },
+
+      setupManifestAndIcon() {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 512;
+          canvas.height = 512;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#d62828";
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(0, 0, 512, 512, 110);
+          else ctx.rect(0, 0, 512, 512);
+          ctx.fill();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "900 116px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("MIXSOS", 256, 225);
+
+          ctx.fillStyle = "#f7b500";
+          ctx.font = "800 44px sans-serif";
+          ctx.fillText("SİPARİŞİM YURTTA!", 256, 325);
+
+          const iconUrl = canvas.toDataURL("image/png");
+          const appleLink = document.getElementById("apple-touch-icon-link");
+          if (appleLink) appleLink.href = iconUrl;
+
+          const manifest = {
+            name: "Siparişim Yurtta! | Mixsos",
+            short_name: "Siparişim Yurtta!",
+            description: "Mixsos Hızlı Yurt & Kampüs Sipariş Hattı",
+            start_url: location.href,
+            display: "standalone",
+            background_color: "#f6f7f9",
+            theme_color: "#d62828",
+            icons: [
+              { src: iconUrl, sizes: "192x192", type: "image/png" },
+              { src: iconUrl, sizes: "512x512", type: "image/png" }
+            ]
+          };
+          const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+          const manifestUrl = URL.createObjectURL(blob);
+          const manLink = document.getElementById("dynamic-manifest");
+          if (manLink) manLink.href = manifestUrl;
+        } catch (e) {}
+      },
+
+      async registerServiceWorker() {
+        if (!("serviceWorker" in navigator)) return;
+        try {
+          const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+            self.addEventListener('notificationclick', (e) => {
+              e.notification.close();
+              e.waitUntil(
+                self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+                  if (clients.length > 0) return clients[0].focus();
+                  return self.clients.openWindow('/');
+                })
+              );
+            });
+          `;
+          const swBlob = new Blob([swCode], { type: "application/javascript" });
+          const swUrl = URL.createObjectURL(swBlob);
+          this.swRegistration = await navigator.serviceWorker.register(swUrl);
+        } catch (e) {}
+      },
+
+      async promptInstall() {
+        if (this.deferredPrompt) {
+          this.deferredPrompt.prompt();
+          const choice = await this.deferredPrompt.userChoice;
+          if (choice && choice.outcome === "accepted") {
+            this.deferredPrompt = null;
+          }
+          return;
+        }
+
+        const ua = navigator.userAgent || "";
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const stepsBox = document.getElementById("pwa-install-steps");
+        if (stepsBox) {
+          if (isIOS) {
+            stepsBox.innerHTML = `
+              <div class="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-1.5">
+                <div class="font-extrabold text-zinc-900">iPhone / Safari İçin:</div>
+                <div>1. Alt menüdeki <strong>Paylaş (yukarı oklu kare)</strong> simgesine dokunun.</div>
+                <div>2. Aşağı kaydırıp <strong>"Ana Ekrana Ekle"</strong> seçeneğine basın.</div>
+                <div>3. Sağ üstteki <strong>"Ekle"</strong> butonuna dokunun.</div>
+              </div>
+            `;
+          } else {
+            stepsBox.innerHTML = `
+              <div class="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-1.5">
+                <div class="font-extrabold text-zinc-900">Android / Chrome İçin:</div>
+                <div>1. Sağ üst köşedeki <strong>⋮ (Üç Nokta)</strong> menüsüne dokunun.</div>
+                <div>2. <strong>"Ana ekrana ekle"</strong> veya <strong>"Uygulamayı yükle"</strong> seçeneğine basın.</div>
+                <div>3. Onayladığınızda uygulama simgesi ana ekranınıza eklenecektir.</div>
+              </div>
+            `;
+          }
+        }
+        document.getElementById("pwa-install-modal")?.classList.remove("hidden");
+      },
+
+      closeModal() {
+        document.getElementById("pwa-install-modal")?.classList.add("hidden");
+      },
+
+      updateNotifButtonUI() {
+        const btn = document.getElementById("btn-enable-notif");
+        const txt = document.getElementById("btn-enable-notif-text");
+        if (!btn || !txt) return;
+
+        if (!("Notification" in window)) {
+          btn.classList.add("hidden");
+          return;
+        }
+        if (Notification.permission === "granted") {
+          btn.className = "px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold transition flex items-center gap-1.5";
+          txt.textContent = "🔔 Bildirimler Açık";
+        } else if (Notification.permission === "denied") {
+          btn.className = "px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5";
+          txt.textContent = "🔕 Bildirim Engelli";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-xs font-bold transition flex items-center gap-1.5";
+          txt.textContent = "🔔 Bildirimleri Aç";
+        }
+      },
+
+      async requestNotificationPermission() {
+        if (!("Notification" in window)) {
+          App.toast("Tarayıcınız bildirimleri desteklemiyor.");
+          return;
+        }
+        if (Notification.permission === "granted") {
+          this.updateNotifButtonUI();
+          this.sendSystemNotification("Siparişim Yurtta! • Mixsos", "Canlı sipariş ve kurye bildirimleriniz aktif.");
+          App.toast("Bildirimleriniz zaten açık!");
+          return;
+        }
+        if (Notification.permission === "denied") {
+          this.updateNotifButtonUI();
+          App.toast("Tarayıcı ayarlarından bildirim iznini aktif etmelisiniz.");
+          return;
+        }
+        try {
+          const perm = await Notification.requestPermission();
+          this.updateNotifButtonUI();
+          if (perm === "granted") {
+            this.sendSystemNotification("Bildirimler Aktif!", "Sipariş durumunuz değiştiğinde anında haber vereceğiz.");
+            App.toast("Bildirim izni onaylandı!");
+          } else {
+            App.toast("Bildirim izni verilmedi.");
+          }
+        } catch (e) {}
+      },
+
+      async sendSystemNotification(title, body) {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        try {
+          if (this.swRegistration && this.swRegistration.showNotification) {
+            await this.swRegistration.showNotification(title, {
+              body,
+              tag: "mixsos-" + Date.now(),
+              renotify: true
+            });
+            return;
+          }
+          new Notification(title, { body });
+        } catch (e) {}
+      }
+    };
+
+    window.onload = () => App.init();
+  </script>
+</body>
+</html>
